@@ -15,6 +15,8 @@ A complete technical specification (`spec.md`) defining the architecture, encryp
 
 <!-- the index: one line per closed ticket, enough to judge relevance, then zoom the link for the detail the ticket holds -->
 
+- [Research BLE Heart Rate Service specification and Android BLE lifecycle](file:///home/jeanpaul/AndroidStudioProjects/HeartZoneMonitor/.scratch/heart-zone-monitor/issues/02-research-ble-protocol-and-android-lifecycle.md): GATT 0x2A37 unpacked, 0x2902 CCCD streaming verified, API 31+ permissions configured without location, GATT 133 prevention rules established.
+
 ## Not yet specified
 
 - **First-run Onboarding & Profile Setup UX**: Exact step sequence to capture age/gender/resting HR vs single modal dialog (depends on 01).
