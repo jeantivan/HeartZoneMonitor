@@ -15,6 +15,7 @@ A complete technical specification (`spec.md`) defining the architecture, encryp
 
 <!-- the index: one line per closed ticket, enough to judge relevance, then zoom the link for the detail the ticket holds -->
 
+- [Research HRmax formulas and Heart Zone percentage boundaries](file:///home/jeanpaul/AndroidStudioProjects/HeartZoneMonitor/.scratch/heart-zone-monitor/issues/01-research-hrmax-and-zone-formulas.md): Tanaka formula (208 - 0.7*age) adopted over Fox; adaptive Karvonen HRR with %HRmax fallback; 5-zone thresholds (50, 60, 70, 80, 90, 100%) grounded in LT1/LT2 thresholds; user override hierarchy specified.
 - [Research BLE Heart Rate Service specification and Android BLE lifecycle](file:///home/jeanpaul/AndroidStudioProjects/HeartZoneMonitor/.scratch/heart-zone-monitor/issues/02-research-ble-protocol-and-android-lifecycle.md): GATT 0x2A37 unpacked, 0x2902 CCCD streaming verified, API 31+ permissions configured without location, GATT 133 prevention rules established.
 
 ## Not yet specified
