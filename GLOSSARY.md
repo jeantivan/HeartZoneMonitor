@@ -35,3 +35,11 @@ _Avoid_: Max BPM, peak heart rate, top pulse
 **Heart Rate Sample**:
 A single timestamped heart rate measurement (in beats per minute) recorded at 1 Hz during active session recording.
 _Avoid_: Tick, data point, pulse reading
+
+**Remembered HRM**:
+A previously paired Heart Rate Monitor whose MAC address and metadata are persisted locally for automatic reconnection.
+_Avoid_: Paired device, saved sensor, trusted peripheral
+
+**Active HRM**:
+The single designated Remembered HRM that the application prioritizes for connection and data streaming during a Session.
+_Avoid_: Selected device, current sensor, primary HRM
