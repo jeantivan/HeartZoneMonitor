@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HeartZoneMonitor - Live Session Screen Prototype</title>
+  <style>
+    :root {
+      --z1-color: #64748B; --z1-dark: #0F172A;
+      --z2-color: #3B82F6; --z2-dark: #172554;
+      --z3-color: #10B981; --z3-dark: #064E3B;
+      --z4-color: #F59E0B; --z4-dark: #451A03;
+      --z5-color: #EF4444; --z5-dark: #450A0A;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    body {
+      background: #000;
+      color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+    /* Phone frame simulation */
+    .phone-container {
+      width: 412px;
+      height: 892px;
+      border-radius: 44px;
+      overflow: hidden;
+      position: relative;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.8), 0 0 0 12px #262626;
+      background: #0a0a0c;
+    }
+
+    /* Top Simulator Bar */
+    .simulator-bar {
+      position: absolute;
+      top: 14px;
+      left: 16px;
+      right: 16px;
+      z-index: 100;
+      background: rgba(26, 26, 34, 0.92);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 18px;
+      padding: 8px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .simulator-bar label {
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+      color: #e2e8f0;
+      letter-spacing: 0.5px;
+    }
+    .simulator-bar input[type="range"] {
+      flex: 1;
+      accent-color: #38bdf8;
+      cursor: pointer;
+    }
+    .sim-btn {
+      background: #334155;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 4px 8px;
+      font-size: 11px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    /* Floating Prototype Switcher */
+    .prototype-switcher {
+      position: absolute;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 100;
+      background: rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(14px);
+      border: 1.5px solid #38bdf8;
+      border-radius: 30px;
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    }
+    .switcher-btn {
+      color: #38bdf8;
+      font-size: 16px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 50%;
+      transition: transform 0.1s;
+    }
+    .switcher-btn:active { transform: scale(0.85); }
+    .switcher-label {
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+      color: #fff;
+    }
+
+    /* Screen Views */
+    .view {
+      position: absolute;
+      inset: 0;
+      display: none;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 85px 22px 85px 22px;
+      transition: background-color 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .view.active { display: flex; }
+
+    /* ================= VARIANT A ================= */
+    .var-a-badge {
+      align-self: center;
+      padding: 6px 18px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border: 1.5px solid rgba(255,255,255,0.4);
+      background: rgba(0,0,0,0.25);
+    }
+    .var-a-pip {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .var-a-bpm-wrap {
+      text-align: center;
+      margin: 10px 0;
+    }
+    .var-a-heart {
+      display: inline-block;
+      font-size: 34px;
+      vertical-align: middle;
+      margin-right: 8px;
+      animation: heartPulse 0.8s infinite alternate;
+    }
+    @keyframes heartPulse {
+      0% { transform: scale(1); }
+      100% { transform: scale(1.18); }
+    }
+    .var-a-bpm {
+      font-size: 110px;
+      font-weight: 900;
+      letter-spacing: -4px;
+      line-height: 1;
+    }
+    .var-a-sub {
+      font-size: 12px;
+      letter-spacing: 2px;
+      opacity: 0.75;
+      font-weight: 700;
+      margin-top: 4px;
+    }
+    .var-a-zones {
+      display: flex;
+      gap: 5px;
+      height: 10px;
+      border-radius: 5px;
+      overflow: hidden;
+      margin-top: 15px;
+    }
+    .var-a-zone-seg {
+      flex: 1;
+      background: rgba(255,255,255,0.18);
+      border-radius: 4px;
+      transition: background 0.3s;
+    }
+    .var-a-card {
+      background: rgba(0,0,0,0.38);
+      border-radius: 20px;
+      padding: 16px;
+      text-align: center;
+      backdrop-filter: blur(8px);
+    }
+    .timer-huge {
+      font-size: 40px;
+      font-weight: 800;
+      font-family: monospace;
+      letter-spacing: 1px;
+      margin: 4px 0;
+    }
+    .timers-sub {
+      display: flex;
+      justify-content: space-around;
+      font-size: 12px;
+      opacity: 0.65;
+    }
+    .btn-row {
+      display: flex;
+      gap: 12px;
+    }
+    .btn {
+      flex: 1;
+      height: 54px;
+      border-radius: 16px;
+      border: none;
+      font-size: 15px;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.1s, opacity 0.2s;
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn-warning { background: #f59e0b; color: #000; }
+    .btn-danger { background: #ef4444; color: #fff; }
+    .btn-success { background: #10b981; color: #000; }
+
+    /* ================= VARIANT B ================= */
+    .view-b {
+      background: #0a0a0c;
+    }
+    .tachometer-wrap {
+      position: relative;
+      width: 250px;
+      height: 250px;
+      margin: 0 auto;
+    }
+    .tachometer-inner {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .tacho-bpm {
+      font-size: 70px;
+      font-weight: 900;
+      line-height: 1;
+    }
+    .sparkline-card {
+      background: #15151b;
+      border-radius: 16px;
+      padding: 12px;
+      height: 110px;
+      display: flex;
+      flex-direction: column;
+    }
+    .metric-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .metric-box {
+      background: #15151b;
+      border-radius: 14px;
+      padding: 10px 12px;
+    }
+
+    /* ================= VARIANT C ================= */
+    .view-c {
+      background: #0f172a;
+      padding-top: 75px;
+      padding-bottom: 75px;
+    }
+    .hud-header {
+      background: var(--z3-color);
+      border-radius: 24px;
+      padding: 22px 18px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      height: 230px;
+      transition: background 0.4s;
+    }
+    .hud-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin: 12px 0;
+    }
+    .hud-tile {
+      background: #1e293b;
+      border-radius: 14px;
+      padding: 10px 12px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="phone-container">
+
+  <!-- Top Simulator Bar -->
+  <div class="simulator-bar">
+    <label id="simBpmLabel">BPM: 145</label>
+    <input type="range" id="bpmSlider" min="60" max="195" value="145">
+    <button class="sim-btn" id="simStepDown">-5</button>
+    <button class="sim-btn" id="simStepUp">+5</button>
+  </div>
+
+  <!-- VARIANT A: Full-Bleed Immersive Zone -->
+  <div class="view view-a active" id="viewA">
+    <div class="var-a-bpm-wrap" style="margin-top: 20px;">
+      <div class="var-a-bpm" id="bpmTextA">145</div>
+      <div style="display: inline-block; margin-top: 8px; padding: 6px 18px; border-radius: 14px; background: rgba(0,0,0,0.32); border: 1px solid rgba(255,255,255,0.35); font-size: 16px; font-weight: 800; letter-spacing: 2px;" id="badgeTextA">
+        BPM  |  ZONE 3
+      </div>
+
+      <div class="var-a-zones" style="margin-top: 24px;">
+        <div class="var-a-zone-seg" id="zSeg1"></div>
+        <div class="var-a-zone-seg" id="zSeg2"></div>
+        <div class="var-a-zone-seg" id="zSeg3"></div>
+        <div class="var-a-zone-seg" id="zSeg4"></div>
+        <div class="var-a-zone-seg" id="zSeg5"></div>
+      </div>
+      <div style="display: flex; justify-content: space-between; font-size: 11px; font-weight: 700; opacity: 0.8; margin-top: 4px; padding: 0 2px;">
+        <span>Z1</span><span>Z2</span><span>Z3</span><span>Z4</span><span>Z5</span>
+      </div>
+    </div>
+
+    <div class="var-a-card" style="padding: 24px 16px;">
+      <div class="timer-huge" id="effTimerA" style="font-size: 52px; font-weight: 900;">00:22:25</div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-warning" id="pauseBtnA">PAUSE</button>
+      <button class="btn btn-danger" id="stopBtnA">STOP & SAVE</button>
+    </div>
+  </div>
+
+  <!-- VARIANT B: Circular Tachometer & Live Waveform -->
+  <div class="view view-b" id="viewB">
+    <div class="tachometer-wrap">
+      <svg width="250" height="250" viewBox="0 0 250 250">
+        <!-- Track -->
+        <circle cx="125" cy="125" r="95" fill="none" stroke="#222" stroke-width="18" stroke-dasharray="450 600" stroke-linecap="round" transform="rotate(135 125 125)"/>
+        <!-- Zone Progress Arc -->
+        <circle id="tachoProgress" cx="125" cy="125" r="95" fill="none" stroke="#10b981" stroke-width="18" stroke-dasharray="0 600" stroke-linecap="round" transform="rotate(135 125 125)" style="transition: stroke 0.4s, stroke-dasharray 0.3s;"/>
+        <!-- Needle Pip -->
+        <circle id="tachoPip" cx="125" cy="30" r="8" fill="#fff" stroke="#10b981" stroke-width="3" style="transition: transform 0.3s ease-out; transform-origin: 125px 125px;"/>
+      </svg>
+      <div class="tachometer-inner">
+        <div class="tacho-bpm" id="bpmTextB">145</div>
+        <div style="font-size: 12px; font-weight: 800; color: #10b981; letter-spacing: 1.5px;" id="tachoLabelB">BPM • ZONE 3</div>
+        <div style="font-size: 11px; opacity: 0.7;">Aerobic Base</div>
+      </div>
+    </div>
+
+    <div class="sparkline-card">
+      <div style="display: flex; justify-content: space-between; font-size: 10px; font-weight: bold; opacity: 0.6;">
+        <span>LIVE TELEMETRY (PAST 60s)</span>
+        <span id="sparkRange">135 - 152 BPM</span>
+      </div>
+      <canvas id="sparklineCanvas" width="360" height="70" style="margin-top: 6px; width: 100%; height: 70px;"></canvas>
+    </div>
+
+    <div class="metric-grid-2">
+      <div class="metric-box">
+        <div style="font-size: 10px; font-weight: bold; opacity: 0.5;">EFFECTIVE TIME</div>
+        <div style="font-size: 22px; font-weight: 800; font-family: monospace;" id="effTimerB">00:22:25</div>
+      </div>
+      <div class="metric-box">
+        <div style="font-size: 10px; font-weight: bold; opacity: 0.5;">SENSOR STATUS</div>
+        <div style="font-size: 15px; font-weight: 800; color: #10b981;">COOSPO 88%</div>
+        <div style="font-size: 11px; opacity: 0.7;">Contact: OK</div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn" style="background: #26262b; border: 1.5px solid #10b981; color: white;" id="pauseBtnB">PAUSE</button>
+      <button class="btn" style="background: #7f1d1d; color: #fca5a5;" id="stopBtnB">FINISH</button>
+    </div>
+  </div>
+
+  <!-- VARIANT C: Split HUD / Multi-Metric Grid -->
+  <div class="view view-c" id="viewC">
+    <div class="hud-header" id="hudHeaderC">
+      <div style="display: flex; justify-content: space-between; width: 100%; font-size: 15px; font-weight: 800;">
+        <span id="hudZoneTitle">ZONE 3 • AEROBIC</span>
+        <span>134-152 BPM</span>
+      </div>
+      <div style="font-size: 96px; font-weight: 900; letter-spacing: -3px; line-height: 1;" id="bpmTextC">145</div>
+      <div style="font-size: 12px; font-weight: 800; opacity: 0.85; letter-spacing: 2px;" id="hudStatusC">RECORDING ACTIVE</div>
+    </div>
+
+    <div class="hud-grid">
+      <div class="hud-tile">
+        <div style="font-size: 9px; font-weight: bold; opacity: 0.5;">EFFECTIVE DURATION</div>
+        <div style="font-size: 20px; font-weight: 800; font-family: monospace;" id="effTimerC">00:22:25</div>
+      </div>
+      <div class="hud-tile">
+        <div style="font-size: 9px; font-weight: bold; opacity: 0.5;">ELAPSED / PAUSED</div>
+        <div style="font-size: 14px; font-weight: 800; font-family: monospace;">00:24:25 / 00:02:00</div>
+      </div>
+      <div class="hud-tile">
+        <div style="font-size: 9px; font-weight: bold; opacity: 0.5;">AVG / MAX BPM</div>
+        <div style="font-size: 18px; font-weight: 800;">141 / 158 BPM</div>
+      </div>
+      <div class="hud-tile">
+        <div style="font-size: 9px; font-weight: bold; opacity: 0.5;">ACTIVE HRM</div>
+        <div style="font-size: 16px; font-weight: 800; color: #10b981;">COOSPO (92%)</div>
+      </div>
+    </div>
+
+    <div class="btn-row" style="align-items: center;">
+      <button class="btn" style="flex: 0 0 54px; background: #334155; font-size: 18px;" id="lockBtnC">🔓</button>
+      <button class="btn btn-warning" id="pauseBtnC">PAUSE</button>
+      <button class="btn btn-danger" style="flex: 0 0 90px;" id="stopBtnC">STOP</button>
+    </div>
+  </div>
+
+  <!-- Floating Prototype Switcher -->
+  <div class="prototype-switcher">
+    <button class="switcher-btn" id="prevVariant">◀</button>
+    <div class="switcher-label" id="variantLabel">VARIANT A: Full-Bleed Immersive</div>
+    <button class="switcher-btn" id="nextVariant">▶</button>
+  </div>
+
+</div>
+
+<script>
+  const zones = [
+    { index: 1, name: "Recovery", desc: "50-60%", min: 95, max: 114, color: "#64748B", dark: "#0F172A" },
+    { index: 2, name: "Endurance", desc: "60-70%", min: 115, max: 133, color: "#3B82F6", dark: "#172554" },
+    { index: 3, name: "Aerobic", desc: "70-80%", min: 134, max: 152, color: "#10B981", dark: "#064E3B" },
+    { index: 4, name: "Threshold", desc: "80-90%", min: 153, max: 171, color: "#F59E0B", dark: "#451A03" },
+    { index: 5, name: "VO2 Max", desc: "90-100%", min: 172, max: 190, color: "#EF4444", dark: "#450A0A" }
+  ];
+
+  function getZone(bpm) {
+    if (bpm < 115) return zones[0];
+    if (bpm < 134) return zones[1];
+    if (bpm < 153) return zones[2];
+    if (bpm < 172) return zones[3];
+    return zones[4];
+  }
+
+  let currentVariantIndex = 0;
+  const variantNames = [
+    "VARIANT A: Full-Bleed Immersive",
+    "VARIANT B: Tachometer & Waveform",
+    "VARIANT C: Split HUD Grid"
+  ];
+  const views = [document.getElementById('viewA'), document.getElementById('viewB'), document.getElementById('viewC')];
+
+  let currentBpm = 145;
+  let isRecording = true;
+  let effectiveSeconds = 1345;
+  let pausedSeconds = 120;
+  let sampleHistory = Array.from({length: 40}, (_, i) => 135 + (i % 15));
+
+  function formatTime(s) {
+    const hrs = Math.floor(s / 3600);
+    const mins = Math.floor((s % 3600) / 60);
+    const secs = s % 60;
+    const pad = n => String(n).padStart(2, '0');
+    return hrs > 0 ? `${pad(hrs)}:${pad(mins)}:${pad(secs)}` : `${pad(mins)}:${pad(secs)}`;
+  }
+
+  function updateUI() {
+    const z = getZone(currentBpm);
+    document.getElementById('simBpmLabel').innerText = `BPM: ${currentBpm}`;
+    document.getElementById('bpmSlider').value = currentBpm;
+
+    // View A (Vibrant Zone Palette)
+    document.getElementById('viewA').style.background = `linear-gradient(180deg, ${z.color} 0%, ${z.color}d0 100%)`;
+    document.getElementById('bpmTextA').innerText = currentBpm;
+    document.getElementById('badgeTextA').innerText = `BPM  |  ZONE ${z.index}`;
+    document.getElementById('effTimerA').innerText = formatTime(effectiveSeconds);
+
+    for (let i = 1; i <= 5; i++) {
+      const seg = document.getElementById(`zSeg${i}`);
+      if (i === z.index) {
+        seg.style.backgroundColor = '#ffffff';
+      } else if (i < z.index) {
+        seg.style.backgroundColor = 'rgba(255,255,255,0.55)';
+      } else {
+        seg.style.backgroundColor = 'rgba(0,0,0,0.25)';
+      }
+    }
+
+    // View B
+    document.getElementById('bpmTextB').innerText = currentBpm;
+    document.getElementById('tachoLabelB').innerText = `BPM • ZONE ${z.index}`;
+    document.getElementById('tachoLabelB').style.color = z.color;
+    document.getElementById('effTimerB').innerText = formatTime(effectiveSeconds);
+
+    const norm = Math.max(0, Math.min(1, (currentBpm - 60) / (200 - 60)));
+    const maxDash = 450;
+    document.getElementById('tachoProgress').style.strokeDasharray = `${norm * maxDash} 600`;
+    document.getElementById('tachoProgress').style.stroke = z.color;
+    document.getElementById('tachoPip').style.stroke = z.color;
+    document.getElementById('tachoPip').style.transform = `rotate(${norm * 270}deg)`;
+
+    drawSparkline(z.color);
+
+    // View C
+    document.getElementById('hudHeaderC').style.backgroundColor = z.color;
+    document.getElementById('hudZoneTitle').innerText = `ZONE ${z.index} • ${z.name.toUpperCase()}`;
+    document.getElementById('bpmTextC').innerText = currentBpm;
+    document.getElementById('effTimerC').innerText = formatTime(effectiveSeconds);
+  }
+
+  function drawSparkline(color) {
+    const canvas = document.getElementById('sparklineCanvas');
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (sampleHistory.length < 2) return;
+
+    ctx.beginPath();
+    const min = 60, max = 200;
+    const step = canvas.width / (sampleHistory.length - 1);
+    sampleHistory.forEach((val, i) => {
+      const y = canvas.height - ((val - min) / (max - min)) * canvas.height;
+      if (i === 0) ctx.moveTo(0, y);
+      else ctx.lineTo(i * step, y);
+    });
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+  }
+
+  // Simulator Events
+  document.getElementById('bpmSlider').addEventListener('input', e => {
+    currentBpm = parseInt(e.target.value);
+    sampleHistory.push(currentBpm);
+    if (sampleHistory.length > 50) sampleHistory.shift();
+    updateUI();
+  });
+  document.getElementById('simStepDown').addEventListener('click', () => {
+    currentBpm = Math.max(60, currentBpm - 5);
+    sampleHistory.push(currentBpm);
+    if (sampleHistory.length > 50) sampleHistory.shift();
+    updateUI();
+  });
+  document.getElementById('simStepUp').addEventListener('click', () => {
+    currentBpm = Math.min(195, currentBpm + 5);
+    sampleHistory.push(currentBpm);
+    if (sampleHistory.length > 50) sampleHistory.shift();
+    updateUI();
+  });
+
+  // Switcher Events
+  function switchVariant(delta) {
+    views[currentVariantIndex].classList.remove('active');
+    currentVariantIndex = (currentVariantIndex + delta + views.length) % views.length;
+    views[currentVariantIndex].classList.add('active');
+    document.getElementById('variantLabel').innerText = variantNames[currentVariantIndex];
+    updateUI();
+  }
+  document.getElementById('prevVariant').addEventListener('click', () => switchVariant(-1));
+  document.getElementById('nextVariant').addEventListener('click', () => switchVariant(1));
+  window.addEventListener('keydown', e => {
+    if (e.key === 'ArrowLeft') switchVariant(-1);
+    if (e.key === 'ArrowRight') switchVariant(1);
+  });
+
+  // Ticker
+  setInterval(() => {
+    if (isRecording) {
+      effectiveSeconds++;
+      if (Math.random() > 0.4) {
+        currentBpm += Math.floor(Math.random() * 3) - 1;
+        currentBpm = Math.max(60, Math.min(195, currentBpm));
+        sampleHistory.push(currentBpm);
+        if (sampleHistory.length > 50) sampleHistory.shift();
+      }
+      updateUI();
+    }
+  }, 1000);
+
+  updateUI();
+</script>
+</body>
+</html>

@@ -43,3 +43,7 @@ _Avoid_: Paired device, saved sensor, trusted peripheral
 **Active HRM**:
 The single designated Remembered HRM that the application prioritizes for connection and data streaming during a Session.
 _Avoid_: Selected device, current sensor, primary HRM
+
+**User Profile**:
+The user's physiological parameters (birth year, resting heart rate, calculation mode, and optional manual HRmax override) used to calculate Heart Zone boundaries.
+_Avoid_: User settings, user account, personal info

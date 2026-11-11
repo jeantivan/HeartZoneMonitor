@@ -1,0 +1,3 @@
+# Encrypted Room Database with Keystore Key-Wrapping
+
+We use Zetetic SQLCipher (`SupportFactory`) to encrypt the local Room database, deriving the database key from a 256-bit passphrase encrypted by a hardware-backed AES-256-GCM master key in Android Keystore. SQLCipher cannot directly leverage Android Keystore because Android Keystore enclaves (TEE/StrongBox) do not export raw symmetric key material, while SQLCipher requires raw key bytes in memory to initialize its SQLite cipher extension. Storing the AES-encrypted passphrase locally preserves unattended Foreground Service recording and background auto-connect while ensuring the database file is indecipherable if extracted from device storage.
