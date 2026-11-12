@@ -44,6 +44,15 @@ All screens adhere to an OLED-optimized dark theme:
 | `WarningAmber` | `#F59E0B` | Disconnection / sensor contact loss warning banners |
 | `DestructiveRed`| `#EF4444` | Session deletion, ungraceful crash recovery badges |
 
+### 2.3 Brand & Action Accent Tokens (Stitch Prototype Mapping)
+The application uses athletic accent colors for onboarding, call-to-action buttons, and telemetry units:
+
+| Token Name | Hex Code | Compose Color | Role / Mapping from Stitch Prototype |
+|---|---|---|---|
+| `AthleticLime` | `#BDCF73` | `Color(0xFFBDCF73)` | Primary interactive buttons, step progress active bars (`primary` in Stitch) |
+| `TertiaryCyan` | `#00DAF3` | `Color(0xFF00DAF3)` | Telemetry units (`BPM`), mode badges (`KARVONEN HRR`), setup headers (`tertiary` in Stitch) |
+| `RequiredOrange` | `#FD5921` | `Color(0xFFFD5921)` | Mandatory input field badges (`REQ`) (`secondary-container` in Stitch) |
+
 ---
 
 ## 3. Typography Hierarchy

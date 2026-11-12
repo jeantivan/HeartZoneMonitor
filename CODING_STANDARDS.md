@@ -29,3 +29,8 @@ Code, comments, types, and database identifiers must strictly align with `GLOSSA
 ## 4. Domain Calculations & Purity
 
 - Calculation engines (such as `ZoneCalculator`) must remain pure, deterministic, and free of Android framework dependencies, enabling fast JVM unit test execution without instrumentation or Robolectric where possible.
+
+## 5. Jetpack Compose UI Architecture
+
+- **Event callback bundling (`Actions` pattern)**: Screen-level and major container composables with $\ge 3$ event lambdas must bundle them into a single `Actions` data class (e.g. `OnboardingProfileActions`) to eliminate parameter explosion and data clump smells across screen implementations, child cards, and unit test harnesses.
+- **Stateless content separation**: Maintain a stateless `*Content(uiState, actions, modifier)` composable distinct from the stateful `*Screen(viewModel, onNavigate*, modifier)` wrapper to enable deterministic preview rendering and Robolectric Compose testing.

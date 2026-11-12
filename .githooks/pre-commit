@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 set -e
 
+echo "Running domain terminology check..."
+./scripts/check-glossary.sh
+
 echo "Running pre-commit verification (:app:compileDebugUnitTestKotlin :app:testDebugUnitTest)..."
 ./gradlew :app:compileDebugUnitTestKotlin :app:testDebugUnitTest
