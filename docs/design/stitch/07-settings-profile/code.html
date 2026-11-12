@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>HeartZoneMonitor - Settings &amp; Profile</title>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Google Fonts: JetBrains Mono & Chivo -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Chivo:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "on-primary-fixed-variant": "#3f4c00",
+            "inverse-on-surface": "#233143",
+            "secondary-container": "#fd5921",
+            "tertiary": "#00daf3",
+            "on-secondary-fixed-variant": "#852300",
+            "on-tertiary-container": "#002f35",
+            "primary-fixed-dim": "#bdcf73",
+            "surface-container": "#122131",
+            "inverse-surface": "#d4e4fa",
+            "surface-container-highest": "#273647",
+            "primary-container": "#889843",
+            "surface-tint": "#bdcf73",
+            "on-tertiary-fixed": "#001f24",
+            "tertiary-fixed-dim": "#00daf3",
+            "primary-fixed": "#d9eb8c",
+            "surface-container-high": "#1c2b3c",
+            "on-primary-container": "#252d00",
+            "primary": "#bdcf73",
+            "tertiary-container": "#009fb2",
+            "surface-variant": "#273647",
+            "surface": "#051424",
+            "on-surface-variant": "#c7c8b5",
+            "surface-dim": "#051424",
+            "error": "#ffb4ab",
+            "on-secondary": "#5e1600",
+            "on-primary": "#2b3400",
+            "on-secondary-fixed": "#3a0a00",
+            "surface-container-low": "#0d1c2d",
+            "on-error": "#690005",
+            "on-surface": "#d4e4fa",
+            "on-tertiary": "#00363d",
+            "outline": "#909281",
+            "on-background": "#d4e4fa",
+            "on-primary-fixed": "#181e00",
+            "secondary-fixed-dim": "#ffb59f",
+            "inverse-primary": "#566513",
+            "background": "#051424",
+            "outline-variant": "#46483a",
+            "surface-container-lowest": "#010f1f",
+            "on-tertiary-fixed-variant": "#004f58",
+            "secondary": "#ffb59f",
+            "surface-bright": "#2c3a4c",
+            "error-container": "#93000a",
+            "on-secondary-container": "#531300",
+            "tertiary-fixed": "#9cf0ff",
+            "on-error-container": "#ffdad6",
+            "secondary-fixed": "#ffdbd0"
+          },
+          borderRadius: {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          spacing: {
+            "space-md": "0.875rem",
+            "gutter-sm": "0.5rem",
+            "margin": "1rem",
+            "space-sm": "0.5rem",
+            "space-lg": "1.25rem",
+            "space-xl": "2rem",
+            "space-xs": "0.25rem",
+            "gutter": "1rem",
+            "margin-lg": "2rem"
+          },
+          fontFamily: {
+            "telemetry-unit": ["JetBrains Mono"],
+            "body-lg": ["Chivo"],
+            "headline-lg-mobile": ["Chivo"],
+            "title-md": ["Chivo"],
+            "label-md": ["JetBrains Mono"],
+            "headline-md": ["Chivo"],
+            "headline-lg": ["Chivo"],
+            "display-xl-mobile": ["JetBrains Mono"],
+            "headline-sm": ["Chivo"],
+            "label-lg": ["JetBrains Mono"],
+            "label-sm": ["JetBrains Mono"],
+            "display-xl": ["JetBrains Mono"],
+            "body-md": ["Chivo"]
+          },
+          fontSize: {
+            "telemetry-unit": ["13px", { lineHeight: "16px", letterSpacing: "0.04em", fontWeight: "500" }],
+            "body-lg": ["16px", { lineHeight: "24px", fontWeight: "500" }],
+            "headline-lg-mobile": ["32px", { lineHeight: "36px", letterSpacing: "-0.02em", fontWeight: "800" }],
+            "title-md": ["18px", { lineHeight: "24px", fontWeight: "600" }],
+            "label-md": ["12px", { lineHeight: "16px", letterSpacing: "0.08em", fontWeight: "600" }],
+            "headline-md": ["28px", { lineHeight: "32px", letterSpacing: "-0.01em", fontWeight: "700" }],
+            "headline-lg": ["40px", { lineHeight: "44px", letterSpacing: "-0.02em", fontWeight: "800" }],
+            "display-xl-mobile": ["56px", { lineHeight: "56px", letterSpacing: "-0.03em", fontWeight: "800" }],
+            "headline-sm": ["22px", { lineHeight: "26px", fontWeight: "700" }],
+            "label-lg": ["14px", { lineHeight: "18px", letterSpacing: "0.06em", fontWeight: "700" }],
+            "label-sm": ["10px", { lineHeight: "14px", letterSpacing: "0.1em", fontWeight: "600" }],
+            "display-xl": ["72px", { lineHeight: "72px", letterSpacing: "-0.04em", fontWeight: "800" }],
+            "body-md": ["14px", { lineHeight: "20px", fontWeight: "400" }]
+          }
+        }
+      }
+    };
+  </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface-container-lowest text-on-surface antialiased min-h-screen pb-24 font-body-md text-body-md select-none">
+<!-- Top App Bar (Shared Anchor Component mapped to exact styling and content) -->
+<header class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-margin py-space-sm bg-surface-container-lowest border-b border-outline-variant">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-2xl" data-icon="monitor_heart">monitor_heart</span>
+<div>
+<div class="flex items-center gap-1.5">
+<span class="inline-block w-1.5 h-1.5 bg-tertiary rounded-full animate-ping"></span>
+<span class="font-label-sm text-label-sm text-tertiary tracking-widest uppercase">SOVEREIGN TELEMETRY</span>
+</div>
+<h1 class="font-headline-sm text-headline-sm text-primary tracking-tight font-extrabold uppercase">Settings &amp; Profile</h1>
+</div>
+</div>
+<button aria-label="Settings and System Info" class="flex items-center justify-center w-10 h-10 rounded border border-outline-variant bg-surface-container-low text-on-surface-variant active:bg-surface-container-high transition-none" type="button">
+<span class="material-symbols-outlined text-xl" data-icon="settings">settings</span>
+</button>
+</header>
+<!-- Mobile Viewport Container -->
+<main class="w-full max-w-[440px] mx-auto pt-20 px-margin flex flex-col gap-space-lg">
+<!-- Screen Title / Mode Status Pill -->
+<div class="flex items-center justify-between px-1">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-base" data-icon="tune">tune</span>
+<span class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">OFFLINE ENGINE v1.0</span>
+</div>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded border border-primary-container/60 bg-primary-container/20 text-primary uppercase font-bold tracking-widest">
+        ACTIVE RUNTIME
+      </span>
+</div>
+<!-- 1. Physiological Profile Section -->
+<section class="bg-surface-container-low rounded-xl border border-outline-variant p-space-md flex flex-col gap-space-md">
+<!-- Section Header -->
+<div class="flex items-center justify-between pb-space-xs border-b border-outline-variant/60">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-lg" data-icon="ecg_heart">ecg_heart</span>
+<h2 class="font-label-lg text-label-lg tracking-wider text-on-surface uppercase">PHYSIOLOGICAL PROFILE</h2>
+</div>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded bg-primary-container text-on-primary-container font-bold tracking-wider">
+          KARVONEN HRR MODEL
+        </span>
+</div>
+<!-- Form Fields Stack -->
+<div class="flex flex-col gap-space-sm">
+<!-- Field 1: Birth Year -->
+<div class="bg-surface-container p-space-sm rounded border border-outline-variant flex flex-col gap-1">
+<div class="flex justify-between items-center">
+<label class="font-label-md text-label-md text-on-surface-variant uppercase" for="birth-year">Birth Year</label>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded bg-surface-container-highest text-tertiary border border-outline-variant/60">
+              (Calculated Age: 38)
+            </span>
+</div>
+<div class="flex items-center justify-between">
+<input class="bg-transparent border-0 font-display-xl-mobile text-headline-md text-on-surface font-extrabold p-0 focus:ring-0 focus:outline-none w-28" id="birth-year" type="number" value="1988"/>
+<span class="font-telemetry-unit text-telemetry-unit text-outline uppercase">YEAR / YYYY</span>
+</div>
+</div>
+<!-- Field 2: Resting Heart Rate -->
+<div class="bg-surface-container p-space-sm rounded border border-outline-variant flex flex-col gap-1">
+<div class="flex justify-between items-center">
+<label class="font-label-md text-label-md text-on-surface-variant uppercase" for="resting-hr">Resting Heart Rate</label>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded bg-surface-container-highest text-primary font-bold border border-outline-variant/60">
+              BPM
+            </span>
+</div>
+<div class="flex items-baseline justify-between">
+<input class="bg-transparent border-0 font-display-xl-mobile text-headline-md text-on-surface font-extrabold p-0 focus:ring-0 focus:outline-none w-28" id="resting-hr" type="number" value="58"/>
+<span class="font-label-sm text-label-sm text-outline">Measured during morning baseline</span>
+</div>
+</div>
+<!-- Field 3: Custom HRmax Override -->
+<div class="bg-surface-container p-space-sm rounded border border-outline-variant flex flex-col gap-2">
+<div class="flex justify-between items-center">
+<label class="font-label-md text-label-md text-on-surface-variant uppercase">Custom HRmax Override</label>
+<button class="font-label-sm text-label-sm px-2 py-1 rounded border border-outline-variant bg-surface-container-lowest text-outline active:bg-surface-container-high transition-none" type="button">
+              [Off / Standard Formula: 181 BPM]
+            </button>
+</div>
+<div class="flex items-center justify-between opacity-40">
+<input class="bg-transparent border-0 font-telemetry-unit text-body-lg text-outline p-0 cursor-not-allowed focus:ring-0" disabled="" placeholder="-- (AUTO)" type="text"/>
+<span class="material-symbols-outlined text-outline text-lg" data-icon="lock">lock</span>
+</div>
+</div>
+</div>
+<!-- Zone Preview Horizontal Pill Bar -->
+<div class="flex flex-col gap-1.5 pt-1">
+<div class="flex justify-between items-center">
+<span class="font-label-sm text-label-sm text-outline uppercase tracking-wider">Calculated Boundaries</span>
+<span class="font-label-sm text-label-sm text-primary uppercase font-bold">5 Zone Matrix</span>
+</div>
+<div class="grid grid-cols-5 gap-1 text-center font-telemetry-unit text-label-sm">
+<!-- Z1 -->
+<div class="flex flex-col items-center p-1 rounded bg-surface-container border-b-2 border-outline">
+<span class="text-outline font-bold">Z1</span>
+<span class="text-[11px] text-on-surface-variant leading-tight">120-132</span>
+</div>
+<!-- Z2 -->
+<div class="flex flex-col items-center p-1 rounded bg-surface-container border-b-2 border-tertiary">
+<span class="text-tertiary font-bold">Z2</span>
+<span class="text-[11px] text-on-surface leading-tight">133-145</span>
+</div>
+<!-- Z3 -->
+<div class="flex flex-col items-center p-1 rounded bg-surface-container border-b-2 border-primary">
+<span class="text-primary font-bold">Z3</span>
+<span class="text-[11px] text-on-surface leading-tight">146-158</span>
+</div>
+<!-- Z4 -->
+<div class="flex flex-col items-center p-1 rounded bg-surface-container border-b-2 border-secondary">
+<span class="text-secondary font-bold">Z4</span>
+<span class="text-[11px] text-on-surface leading-tight">159-170</span>
+</div>
+<!-- Z5 -->
+<div class="flex flex-col items-center p-1 rounded bg-surface-container border-b-2 border-secondary-container">
+<span class="text-secondary-container font-bold">Z5</span>
+<span class="text-[11px] text-on-surface leading-tight">171-181</span>
+</div>
+</div>
+</div>
+<!-- Invariant Notice Box -->
+<div class="bg-surface-container-lowest/80 border border-outline-variant p-space-sm rounded flex items-start gap-2.5">
+<span class="material-symbols-outlined text-primary text-xl flex-shrink-0 mt-0.5" data-icon="shield">shield</span>
+<p class="font-body-md text-[13px] leading-relaxed text-on-surface-variant">
+          Profile changes update future workouts. Past historical session records retain their frozen physiological snapshot to ensure immutable telemetry integrity.
+        </p>
+</div>
+<!-- Action Button -->
+<button class="min-h-[52px] w-full rounded bg-primary text-on-primary font-title-md text-title-md font-bold uppercase tracking-wider flex items-center justify-center gap-2 border-2 border-primary active:bg-primary-fixed-dim active:scale-[0.99] transition-none" type="button">
+<span class="material-symbols-outlined text-xl" data-icon="save">save</span>
+<span>Save Profile Changes</span>
+</button>
+</section>
+<!-- 2. Hardware & Devices Section -->
+<section class="flex flex-col gap-space-xs">
+<h2 class="font-label-md text-label-md text-outline uppercase tracking-wider px-1">HARDWARE &amp; PERIPHERALS</h2>
+<button class="w-full text-left bg-surface-container-low rounded-xl border border-outline-variant p-space-md flex items-center justify-between active:bg-surface-container-high transition-none group" type="button">
+<div class="flex items-center gap-3">
+<div class="w-11 h-11 rounded bg-surface-container border border-outline-variant flex items-center justify-center text-tertiary">
+<span class="material-symbols-outlined text-2xl" data-icon="bluetooth_searching">bluetooth_searching</span>
+</div>
+<div>
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-tertiary inline-block"></span>
+<span class="font-title-md text-title-md text-on-surface font-bold">Manage Bluetooth Sensors</span>
+</div>
+<p class="font-label-sm text-label-sm text-on-surface-variant mt-0.5">1 Active Strap (COOSPO H808S) · 2 Remembered</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-outline group-hover:text-on-surface transition-none" data-icon="chevron_right">chevron_right</span>
+</button>
+</section>
+<!-- 3. Security & Sovereign Privacy Card -->
+<section class="bg-surface-container-low rounded-xl border border-outline-variant p-space-md flex flex-col gap-space-sm">
+<div class="flex items-center gap-2 pb-space-xs border-b border-outline-variant/60">
+<span class="material-symbols-outlined text-primary text-lg" data-icon="lock_open">lock_open</span>
+<h2 class="font-label-md text-label-md tracking-wider text-outline uppercase">SECURITY &amp; SOVEREIGN DATA</h2>
+</div>
+<!-- Row 1 -->
+<div class="flex items-center justify-between py-1 border-b border-outline-variant/40">
+<div class="flex items-center gap-2.5">
+<span class="material-symbols-outlined text-primary text-xl" data-icon="verified_user">verified_user</span>
+<span class="font-body-md text-body-md text-on-surface font-semibold">Hardware Keystore Encryption</span>
+</div>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded bg-surface-container text-tertiary border border-outline-variant/60 font-mono">
+          Active (AES-256-GCM)
+        </span>
+</div>
+<!-- Row 2 -->
+<div class="flex items-center justify-between py-1 border-b border-outline-variant/40">
+<div class="flex items-center gap-2.5">
+<span class="material-symbols-outlined text-primary text-xl" data-icon="fingerprint">fingerprint</span>
+<span class="font-body-md text-body-md text-on-surface font-semibold">Biometric Data Export</span>
+</div>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded bg-surface-container text-primary border border-outline-variant/60 font-bold uppercase">
+          Biometric Gated
+        </span>
+</div>
+<!-- Row 3 -->
+<div class="flex items-center justify-between py-1">
+<div class="flex items-center gap-2.5">
+<span class="material-symbols-outlined text-primary text-xl" data-icon="cloud_off">cloud_off</span>
+<span class="font-body-md text-body-md text-on-surface font-semibold">100% Offline Architecture</span>
+</div>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded bg-surface-container-highest text-on-surface-variant border border-outline-variant/60">
+          Zero servers · Zero cloud telemetry
+        </span>
+</div>
+</section>
+<!-- 4. About & Build Metadata -->
+<footer class="flex flex-col items-center justify-center text-center gap-1 py-space-sm px-margin">
+<div class="flex items-center gap-2 text-outline font-telemetry-unit text-label-sm">
+<span class="material-symbols-outlined text-sm" data-icon="terminal">terminal</span>
+<span>HeartZoneMonitor v1.0.0 (Build 42)</span>
+</div>
+<p class="font-telemetry-unit text-[11px] text-outline/80">Pure Local SQLite · Open Source &amp; Sovereign Health</p>
+<p class="font-telemetry-unit text-[10px] text-outline/60 mt-0.5">Licensed under MIT · Zero trackers detected</p>
+</footer>
+</main>
+<!-- Bottom Navigation Bar (Shared Anchor Component mapped to exact styling and content) -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-gutter-sm pb-space-xs pt-space-xs bg-surface-container-lowest border-t border-outline-variant">
+<!-- Tab 1: MONITOR (ecg_heart) -->
+<a class="flex flex-col items-center justify-center text-outline py-space-xs px-gutter-sm min-h-[56px] hover:bg-surface-container-low hover:text-on-surface active:bg-surface-container active:scale-95 transition-transform duration-75" href="#">
+<span class="material-symbols-outlined text-2xl" data-icon="ecg_heart">ecg_heart</span>
+<span class="font-label-sm text-label-sm uppercase font-label-sm mt-0.5">MONITOR</span>
+</a>
+<!-- Tab 2: ZONES (speed) -->
+<a class="flex flex-col items-center justify-center text-outline py-space-xs px-gutter-sm min-h-[56px] hover:bg-surface-container-low hover:text-on-surface active:bg-surface-container active:scale-95 transition-transform duration-75" href="#">
+<span class="material-symbols-outlined text-2xl" data-icon="speed">speed</span>
+<span class="font-label-sm text-label-sm uppercase font-label-sm mt-0.5">ZONES</span>
+</a>
+<!-- Tab 3: PROFILE (tune) - ACTIVE STATE (Strictly maps to this Settings & Profile Page) -->
+<a class="flex flex-col items-center justify-center bg-surface-container-high text-primary border-t-2 border-primary py-space-xs px-gutter-sm min-h-[56px] active:bg-surface-container active:scale-95 transition-transform duration-75" href="#">
+<span class="material-symbols-outlined text-2xl" data-icon="tune" style="font-variation-settings: 'FILL' 1;">tune</span>
+<span class="font-label-sm text-label-sm uppercase font-label-sm font-bold mt-0.5">PROFILE</span>
+</a>
+<!-- Tab 4: HISTORY (history) -->
+<a class="flex flex-col items-center justify-center text-outline py-space-xs px-gutter-sm min-h-[56px] hover:bg-surface-container-low hover:text-on-surface active:bg-surface-container active:scale-95 transition-transform duration-75" href="#">
+<span class="material-symbols-outlined text-2xl" data-icon="history">history</span>
+<span class="font-label-sm text-label-sm uppercase font-label-sm mt-0.5">HISTORY</span>
+</a>
+</nav>
+</body></html>

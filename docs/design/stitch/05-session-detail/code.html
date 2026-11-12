@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>HeartZoneMonitor · Workout Analytics</title>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Google Fonts: Chivo & JetBrains Mono -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Chivo:ital,wght@0,300..900;1,300..900&amp;family=JetBrains+Mono:ital,wght@0,400..800;1,400..800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS v3 -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "on-primary-fixed-variant": "#3f4c00",
+            "tertiary-fixed": "#9cf0ff",
+            "surface-container-lowest": "#010f1f",
+            "primary-fixed-dim": "#bdcf73",
+            "on-background": "#d4e4fa",
+            "surface-tint": "#bdcf73",
+            "surface-container-high": "#1c2b3c",
+            "on-tertiary": "#00363d",
+            "inverse-primary": "#566513",
+            "surface-bright": "#2c3a4c",
+            "inverse-on-surface": "#233143",
+            "on-secondary-fixed-variant": "#852300",
+            "surface-variant": "#273647",
+            "secondary": "#ffb59f",
+            "surface": "#051424",
+            "tertiary-container": "#009fb2",
+            "on-primary-container": "#252d00",
+            "primary-container": "#889843",
+            "secondary-container": "#fd5921",
+            "on-primary-fixed": "#181e00",
+            "on-secondary-fixed": "#3a0a00",
+            "inverse-surface": "#d4e4fa",
+            "on-tertiary-fixed-variant": "#004f58",
+            "primary": "#bdcf73",
+            "on-secondary-container": "#531300",
+            "secondary-fixed": "#ffdbd0",
+            "surface-container-highest": "#273647",
+            "primary-fixed": "#d9eb8c",
+            "on-error-container": "#ffdad6",
+            "surface-container-low": "#0d1c2d",
+            "surface-dim": "#051424",
+            "on-tertiary-container": "#002f35",
+            "tertiary-fixed-dim": "#00daf3",
+            "on-surface-variant": "#c7c8b5",
+            "on-tertiary-fixed": "#001f24",
+            "on-secondary": "#5e1600",
+            "error-container": "#93000a",
+            "tertiary": "#00daf3",
+            "background": "#051424",
+            "secondary-fixed-dim": "#ffb59f",
+            "error": "#ffb4ab",
+            "on-error": "#690005",
+            "on-primary": "#2b3400",
+            "outline": "#909281",
+            "on-surface": "#d4e4fa",
+            "outline-variant": "#46483a",
+            "surface-container": "#122131"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "space-lg": "1.25rem",
+            "margin-lg": "2rem",
+            "margin": "1rem",
+            "gutter": "1rem",
+            "space-xs": "0.25rem",
+            "space-sm": "0.5rem",
+            "space-xl": "2rem",
+            "gutter-sm": "0.5rem",
+            "space-md": "0.875rem"
+          },
+          "fontFamily": {
+            "headline-lg": ["Chivo"],
+            "headline-lg-mobile": ["Chivo"],
+            "title-md": ["Chivo"],
+            "label-md": ["JetBrains Mono"],
+            "display-xl-mobile": ["JetBrains Mono"],
+            "body-lg": ["Chivo"],
+            "label-lg": ["JetBrains Mono"],
+            "headline-sm": ["Chivo"],
+            "label-sm": ["JetBrains Mono"],
+            "headline-md": ["Chivo"],
+            "display-xl": ["JetBrains Mono"],
+            "telemetry-unit": ["JetBrains Mono"],
+            "body-md": ["Chivo"]
+          },
+          "fontSize": {
+            "headline-lg": ["40px", {"lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+            "headline-lg-mobile": ["32px", {"lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+            "title-md": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+            "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.08em", "fontWeight": "600"}],
+            "display-xl-mobile": ["56px", {"lineHeight": "56px", "letterSpacing": "-0.03em", "fontWeight": "800"}],
+            "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "500"}],
+            "label-lg": ["14px", {"lineHeight": "18px", "letterSpacing": "0.06em", "fontWeight": "700"}],
+            "headline-sm": ["22px", {"lineHeight": "26px", "fontWeight": "700"}],
+            "label-sm": ["10px", {"lineHeight": "14px", "letterSpacing": "0.1em", "fontWeight": "600"}],
+            "headline-md": ["28px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+            "display-xl": ["72px", {"lineHeight": "72px", "letterSpacing": "-0.04em", "fontWeight": "800"}],
+            "telemetry-unit": ["13px", {"lineHeight": "16px", "letterSpacing": "0.04em", "fontWeight": "500"}],
+            "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 500, 'GRAD' 0, 'opsz' 24;
+      display: inline-block;
+      vertical-align: middle;
+      line-height: 1;
+    }
+    /* Tabular numeric rendering */
+    .tabular-nums {
+      font-variant-numeric: tabular-nums;
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-[#0B0F19] text-[#F3F6F4] font-body-md antialiased min-h-screen pb-32 select-none overflow-x-hidden">
+<!-- Top App Bar (Task-Focused Detail View: Global Shell Suppressed per Destination Rule) -->
+<header class="sticky top-0 z-40 bg-[#0B0F19]/95 backdrop-blur-md px-margin py-3 border-b border-[#334155]/60 flex items-center justify-between">
+<!-- Back Button -->
+<button aria-label="Go back" class="w-10 h-10 flex items-center justify-center rounded-lg bg-[#1E293B] border border-[#334155] text-on-surface active:scale-95 active:border-primary transition-all">
+<span class="material-symbols-outlined text-[20px]" data-icon="arrow_back">arrow_back</span>
+</button>
+<!-- Title -->
+<div class="flex flex-col items-center">
+<h1 class="text-[17px] font-title-md font-bold tracking-tight text-white flex items-center gap-1.5">
+<span>Workout Analytics</span>
+<span class="text-[#64748B]">·</span>
+<span class="font-label-sm text-[#94A3B8] text-[13px] tracking-normal">Nov 11, 2026</span>
+</h1>
+<span class="text-[10px] font-label-sm uppercase tracking-widest text-primary flex items-center gap-1 mt-0.5">
+<span class="w-1.5 h-1.5 rounded-full bg-primary inline-block"></span>
+        BIOMETRIC LOG VERIFIED
+      </span>
+</div>
+<!-- Trash / Delete Action -->
+<button aria-label="Delete Session" class="w-10 h-10 flex items-center justify-center rounded-lg bg-[#1E293B] border border-[#EF4444]/40 text-[#EF4444] active:bg-[#EF4444]/20 active:scale-95 transition-all">
+<span class="material-symbols-outlined text-[20px]" data-icon="delete">delete</span>
+</button>
+</header>
+<main class="px-margin pt-space-md space-y-space-md max-w-md mx-auto">
+<!-- 1. Hero Telemetry Row Card -->
+<section class="bg-[#1E293B] border border-[#334155] rounded-2xl p-4 shadow-sm relative overflow-hidden">
+<!-- Ambient corner tactical accent -->
+<div class="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-primary/10 to-transparent pointer-events-none"></div>
+<!-- 4-Column Metric Grid -->
+<div class="grid grid-cols-4 gap-gutter-sm text-center">
+<!-- Effective Time -->
+<div class="flex flex-col items-center justify-center p-1 bg-[#122131]/60 rounded border border-[#334155]/40">
+<span class="font-label-sm text-[9px] uppercase tracking-wider text-[#94A3B8] mb-0.5">EFFECTIVE</span>
+<span class="font-label-lg text-[18px] sm:text-[20px] font-bold tabular-nums text-white leading-tight">54:20</span>
+<span class="font-label-sm text-[9px] text-[#64748B] mt-0.5">MM:SS</span>
+</div>
+<!-- Avg BPM -->
+<div class="flex flex-col items-center justify-center p-1 bg-[#122131]/60 rounded border border-[#334155]/40">
+<span class="font-label-sm text-[9px] uppercase tracking-wider text-[#94A3B8] mb-0.5">AVG BPM</span>
+<span class="font-label-lg text-[22px] font-bold tabular-nums text-white leading-tight">146</span>
+<span class="font-label-sm text-[9px] text-[#7D8D39] font-semibold mt-0.5">ZONE 2.9</span>
+</div>
+<!-- Max BPM -->
+<div class="flex flex-col items-center justify-center p-1 bg-[#122131]/60 rounded border border-[#334155]/40">
+<span class="font-label-sm text-[9px] uppercase tracking-wider text-[#94A3B8] mb-0.5">MAX BPM</span>
+<span class="font-label-lg text-[22px] font-bold tabular-nums text-[#FF5A22] leading-tight">174</span>
+<span class="font-label-sm text-[9px] text-[#FF5A22]/80 font-semibold mt-0.5">ZONE 4.8</span>
+</div>
+<!-- Min BPM -->
+<div class="flex flex-col items-center justify-center p-1 bg-[#122131]/60 rounded border border-[#334155]/40">
+<span class="font-label-sm text-[9px] uppercase tracking-wider text-[#94A3B8] mb-0.5">MIN BPM</span>
+<span class="font-label-lg text-[22px] font-bold tabular-nums text-[#38BDF8] leading-tight">98</span>
+<span class="font-label-sm text-[9px] text-[#38BDF8]/80 font-semibold mt-0.5">START</span>
+</div>
+</div>
+<!-- Sub-row divider -->
+<div class="w-full h-px bg-[#334155]/70 my-3"></div>
+<!-- Metadata strip -->
+<div class="flex items-center justify-between text-[10px] font-label-sm uppercase text-[#94A3B8] tracking-wider leading-relaxed">
+<div class="flex items-center gap-1.5 flex-wrap">
+<span>Elapsed: <strong class="text-white font-mono">56:10</strong></span>
+<span class="text-[#475569]">·</span>
+<span>Paused: <strong class="text-[#F59E0B] font-mono">01:50</strong></span>
+<span class="text-[#475569]">·</span>
+<span class="inline-flex items-center gap-1 text-[#38BDF8]">
+<span class="material-symbols-outlined text-[12px]" data-icon="bluetooth_searching">bluetooth_searching</span>
+            COOSPO H808S <span class="text-[#64748B]">(BLE 0x180D)</span>
+</span>
+</div>
+</div>
+</section>
+<!-- 2. Zone Distribution Card -->
+<section class="bg-[#1E293B] border border-[#334155] rounded-2xl p-4 shadow-sm space-y-3">
+<!-- Title & Dominant Badge -->
+<div class="flex items-center justify-between">
+<h2 class="font-label-md text-label-md text-white font-bold tracking-wider uppercase flex items-center gap-1.5">
+<span class="material-symbols-outlined text-primary text-[16px]" data-icon="bar_chart">bar_chart</span>
+          ZONE DISTRIBUTION
+        </h2>
+<span class="px-2 py-0.5 rounded bg-[#10B981]/15 border border-[#10B981]/40 text-[#10B981] font-label-sm text-[10px] uppercase font-bold tracking-wider">
+          DOMINANT: ZONE 3 (TEMPO · 40%)
+        </span>
+</div>
+<!-- Stacked Horizontal Distribution Bar (10px height, rounded-full) -->
+<div class="w-full h-[10px] rounded-full overflow-hidden flex bg-[#0B0F19] p-0.5 border border-[#334155]">
+<div class="h-full bg-[#64748B] rounded-l-full" style="width: 10%;" title="Zone 1: 10%"></div>
+<div class="h-full bg-[#3B82F6] ml-0.5" style="width: 35%;" title="Zone 2: 35%"></div>
+<div class="h-full bg-[#10B981] ml-0.5" style="width: 40%;" title="Zone 3: 40%"></div>
+<div class="h-full bg-[#F59E0B] ml-0.5" style="width: 15%;" title="Zone 4: 15%"></div>
+<div class="h-full bg-[#EF4444] ml-0.5 w-[2px] opacity-40 rounded-r-full" title="Zone 5: 0%"></div>
+</div>
+<!-- Table List Rows -->
+<div class="space-y-1.5 pt-1 text-[12px] font-label-md">
+<!-- Zone 1 -->
+<div class="flex items-center justify-between py-1.5 px-2 rounded bg-[#122131]/40 hover:bg-[#122131] transition-colors border border-transparent hover:border-[#334155]/50">
+<div class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-[#64748B] shrink-0"></span>
+<span class="text-white font-medium">Zone 1 <span class="text-[#94A3B8] font-normal">(Recovery)</span></span>
+</div>
+<div class="flex items-center gap-3 tabular-nums">
+<span class="text-[#94A3B8] font-mono text-[11px]">121 - 133 BPM</span>
+<span class="text-white font-bold font-mono">05:20</span>
+<span class="text-[#94A3B8] font-mono w-9 text-right">10%</span>
+</div>
+</div>
+<!-- Zone 2 -->
+<div class="flex items-center justify-between py-1.5 px-2 rounded bg-[#122131]/40 hover:bg-[#122131] transition-colors border border-transparent hover:border-[#334155]/50">
+<div class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-[#3B82F6] shrink-0"></span>
+<span class="text-white font-medium">Zone 2 <span class="text-[#94A3B8] font-normal">(Aerobic Base)</span></span>
+</div>
+<div class="flex items-center gap-3 tabular-nums">
+<span class="text-[#94A3B8] font-mono text-[11px]">134 - 146 BPM</span>
+<span class="text-white font-bold font-mono">18:45</span>
+<span class="text-[#94A3B8] font-mono w-9 text-right">35%</span>
+</div>
+</div>
+<!-- Zone 3 (Dominant) -->
+<div class="flex items-center justify-between py-1.5 px-2 rounded bg-[#10B981]/10 border border-[#10B981]/30">
+<div class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-[#10B981] shadow-[0_0_6px_#10B981] shrink-0"></span>
+<span class="text-white font-bold">Zone 3 <span class="text-[#A7F3D0] font-normal">(Tempo)</span></span>
+</div>
+<div class="flex items-center gap-3 tabular-nums">
+<span class="text-[#6EE7B7] font-mono text-[11px]">147 - 159 BPM</span>
+<span class="text-[#10B981] font-bold font-mono">21:30</span>
+<span class="text-[#10B981] font-bold font-mono w-9 text-right">40%</span>
+</div>
+</div>
+<!-- Zone 4 -->
+<div class="flex items-center justify-between py-1.5 px-2 rounded bg-[#122131]/40 hover:bg-[#122131] transition-colors border border-transparent hover:border-[#334155]/50">
+<div class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-[#F59E0B] shrink-0"></span>
+<span class="text-white font-medium">Zone 4 <span class="text-[#94A3B8] font-normal">(Threshold)</span></span>
+</div>
+<div class="flex items-center gap-3 tabular-nums">
+<span class="text-[#94A3B8] font-mono text-[11px]">160 - 171 BPM</span>
+<span class="text-white font-bold font-mono">08:45</span>
+<span class="text-[#94A3B8] font-mono w-9 text-right">15%</span>
+</div>
+</div>
+<!-- Zone 5 -->
+<div class="flex items-center justify-between py-1.5 px-2 rounded bg-[#122131]/40 opacity-70">
+<div class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-[#EF4444] shrink-0"></span>
+<span class="text-white font-medium">Zone 5 <span class="text-[#94A3B8] font-normal">(Anaerobic)</span></span>
+</div>
+<div class="flex items-center gap-3 tabular-nums">
+<span class="text-[#94A3B8] font-mono text-[11px]">172 - 182 BPM</span>
+<span class="text-white font-bold font-mono">00:00</span>
+<span class="text-[#94A3B8] font-mono w-9 text-right">0%</span>
+</div>
+</div>
+</div>
+</section>
+<!-- 3. Time-Series Heart Rate Line Chart Card -->
+<section class="bg-[#1E293B] border border-[#334155] rounded-2xl p-4 shadow-sm space-y-2 relative">
+<div class="flex items-center justify-between">
+<div>
+<h2 class="font-label-md text-label-md text-white font-bold tracking-wider uppercase flex items-center gap-1.5">
+<span class="material-symbols-outlined text-tertiary text-[16px]" data-icon="ssid_chart">ssid_chart</span>
+            HEART RATE TELEMETRY (1 Hz)
+          </h2>
+<p class="font-label-sm text-[10px] text-[#94A3B8] mt-0.5">54m recorded · LTTB downsampled</p>
+</div>
+<div class="flex items-center gap-2">
+<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#0B0F19] text-[#94A3B8] border border-[#334155] text-[10px] font-mono">
+<span class="w-1.5 h-1.5 rounded-full bg-[#38BDF8]"></span>
+            SMOOTHED
+          </span>
+</div>
+</div>
+<!-- SVG Chart Canvas Container -->
+<div class="relative w-full h-[220px] bg-[#080C14] rounded-xl border border-[#334155]/80 p-2 overflow-hidden">
+<!-- Background Grid & Zone Guidelines (Y-Axis) -->
+<svg class="w-full h-[180px] absolute inset-x-0 top-2 px-2 overflow-visible" preserveaspectratio="none" viewbox="0 0 340 180">
+<defs>
+<lineargradient id="hrLineGrad" x1="0%" x2="100%" y1="0%" y2="0%">
+<stop offset="0%" stop-color="#38BDF8"></stop>
+<stop offset="35%" stop-color="#10B981"></stop>
+<stop offset="70%" stop-color="#F59E0B"></stop>
+<stop offset="100%" stop-color="#10B981"></stop>
+</lineargradient>
+<lineargradient id="hrFillGrad" x1="0%" x2="0%" y1="0%" y2="100%">
+<stop offset="0%" stop-color="#F59E0B" stop-opacity="0.25"></stop>
+<stop offset="50%" stop-color="#10B981" stop-opacity="0.10"></stop>
+<stop offset="100%" stop-color="#38BDF8" stop-opacity="0.0"></stop>
+</lineargradient>
+</defs>
+<!-- Zone Y Guidelines -->
+<!-- Z5: 172 bpm (Y=18) -->
+<line stroke="#EF4444" stroke-dasharray="3,3" stroke-opacity="0.35" stroke-width="1" x1="28" x2="335" y1="18" y2="18"></line>
+<text fill="#EF4444" font-family="JetBrains Mono" font-size="8" font-weight="600" opacity="0.8" x="0" y="21">Z5 172</text>
+<!-- Z4: 160 bpm (Y=48) -->
+<line stroke="#F59E0B" stroke-dasharray="3,3" stroke-opacity="0.3" stroke-width="1" x1="28" x2="335" y1="48" y2="48"></line>
+<text fill="#F59E0B" font-family="JetBrains Mono" font-size="8" font-weight="600" opacity="0.8" x="0" y="51">Z4 160</text>
+<!-- Z3: 147 bpm (Y=82) -->
+<line stroke="#10B981" stroke-dasharray="3,3" stroke-opacity="0.3" stroke-width="1" x1="28" x2="335" y1="82" y2="82"></line>
+<text fill="#10B981" font-family="JetBrains Mono" font-size="8" font-weight="600" opacity="0.8" x="0" y="85">Z3 147</text>
+<!-- Z2: 134 bpm (Y=118) -->
+<line stroke="#38BDF8" stroke-dasharray="3,3" stroke-opacity="0.3" stroke-width="1" x1="28" x2="335" y1="118" y2="118"></line>
+<text fill="#38BDF8" font-family="JetBrains Mono" font-size="8" font-weight="600" opacity="0.8" x="0" y="121">Z2 134</text>
+<!-- Z1: 121 bpm (Y=152) -->
+<line stroke="#64748B" stroke-dasharray="3,3" stroke-opacity="0.3" stroke-width="1" x1="28" x2="335" y1="152" y2="152"></line>
+<text fill="#64748B" font-family="JetBrains Mono" font-size="8" font-weight="600" opacity="0.8" x="0" y="155">Z1 121</text>
+<!-- Segment 1 Area & Line: 00:00 to 25:00 (X=30 to X=165) -->
+<polygon fill="url(#hrFillGrad)" points="30,170 30,158 55,142 80,120 105,95 125,78 145,88 165,115 165,170"></polygon>
+<path d="M 30,158 Q 45,146 55,142 T 80,120 T 105,95 T 125,78 T 145,88 T 165,115" fill="none" stroke="url(#hrLineGrad)" stroke-linecap="round" stroke-width="2.2"></path>
+<!-- Honest Gap / Pause Segment (X=165 to X=180) at minute 25:00 -->
+<rect fill="#EF4444" fill-opacity="0.08" height="155" width="15" x="165" y="15"></rect>
+<line stroke="#F59E0B" stroke-dasharray="2,2" stroke-width="1" x1="165" x2="165" y1="15" y2="170"></line>
+<line stroke="#F59E0B" stroke-dasharray="2,2" stroke-width="1" x1="180" x2="180" y1="15" y2="170"></line>
+<!-- Segment 2 Area & Line: 26:50 to 54:20 (X=180 to X=330) -->
+<polygon fill="url(#hrFillGrad)" points="180,170 180,122 200,90 215,60 230,42 245,52 265,30 285,65 310,75 330,85 330,170"></polygon>
+<path d="M 180,122 Q 192,105 200,90 T 215,60 T 230,42 T 245,52 T 265,30 T 285,65 T 310,75 T 330,85" fill="none" stroke="url(#hrLineGrad)" stroke-linecap="round" stroke-width="2.2"></path>
+<!-- Scrubber Crosshair at 34:10 (approx X=222) -->
+<line stroke="#F8FAFC" stroke-dasharray="3,2" stroke-width="1.2" x1="222" x2="222" y1="10" y2="170"></line>
+<circle cx="222" cy="52" fill="#F59E0B" r="4.5" stroke="#080C14" stroke-width="2"></circle>
+</svg>
+<!-- Pause Tag Annotation Bracket -->
+<div class="absolute top-6 left-[142px] -translate-x-1/2 pointer-events-none flex flex-col items-center">
+<span class="px-1.5 py-0.5 rounded bg-[#080C14]/90 border border-[#F59E0B]/60 text-[#F59E0B] font-label-sm text-[8px] tracking-tight uppercase whitespace-nowrap shadow-md">
+            PAUSED (1m 50s)
+          </span>
+<span class="material-symbols-outlined text-[10px] text-[#F59E0B] -mt-1" data-icon="arrow_drop_down">arrow_drop_down</span>
+</div>
+<!-- Floating Scrubber Tooltip Pill at 34:10 -->
+<div class="absolute top-3 left-[200px] pointer-events-none flex flex-col items-center">
+<div class="bg-[#1E293B]/95 border border-[#F59E0B] px-2 py-1 rounded-md shadow-xl flex items-center gap-1.5 whitespace-nowrap">
+<span class="font-mono text-[10px] text-[#94A3B8]">34:10</span>
+<span class="text-[#334155]">·</span>
+<span class="font-mono text-[11px] font-bold text-white">158 BPM</span>
+<span class="text-[#334155]">·</span>
+<span class="px-1 py-0.2 rounded bg-[#F59E0B] text-[#080C14] font-label-sm text-[8px] font-black uppercase">ZONE 4</span>
+</div>
+<div class="w-1.5 h-1.5 bg-[#F59E0B] rotate-45 -mt-1 border-r border-b border-[#F59E0B]"></div>
+</div>
+<!-- X-Axis Timestamps (Bottom Row) -->
+<div class="absolute bottom-1 inset-x-0 pl-8 pr-2 flex justify-between text-[9px] font-mono text-[#64748B] tabular-nums">
+<span>00:00</span>
+<span>15:00</span>
+<span>30:00</span>
+<span>45:00</span>
+<span>54:20</span>
+</div>
+</div>
+</section>
+<!-- 4. Physiological Snapshot Card -->
+<section class="bg-[#1E293B] border border-[#334155] rounded-2xl p-4 shadow-sm space-y-3">
+<div class="flex items-center justify-between">
+<h2 class="font-label-md text-label-md text-white font-bold tracking-wider uppercase flex items-center gap-1.5">
+<span class="material-symbols-outlined text-primary text-[18px]" data-icon="lock">lock</span>
+          FROZEN BIOMETRIC BASELINE
+        </h2>
+<span class="font-label-sm text-[10px] px-2 py-0.5 rounded bg-[#122131] border border-[#334155] text-primary font-mono uppercase">
+          READ-ONLY
+        </span>
+</div>
+<!-- Parameter Chips Grid -->
+<div class="grid grid-cols-2 gap-2 text-[11px] font-label-md">
+<!-- Chip 1: Age -->
+<div class="p-2.5 rounded-xl bg-[#080C14]/70 border border-[#334155] flex flex-col">
+<span class="text-[#94A3B8] text-[10px] uppercase tracking-wider">Age Profile</span>
+<span class="text-white font-bold text-[13px] font-mono mt-0.5">38 <span class="text-[#64748B] font-normal text-[11px]">(Birth Year 1988)</span></span>
+</div>
+<!-- Chip 2: Resting HR -->
+<div class="p-2.5 rounded-xl bg-[#080C14]/70 border border-[#334155] flex flex-col">
+<span class="text-[#94A3B8] text-[10px] uppercase tracking-wider">Resting HR</span>
+<span class="text-white font-bold text-[13px] font-mono mt-0.5">58 <span class="text-[#64748B] font-normal text-[11px]">BPM</span></span>
+</div>
+<!-- Chip 3: Calculation Formula -->
+<div class="p-2.5 rounded-xl bg-[#080C14]/70 border border-[#334155] flex flex-col">
+<span class="text-[#94A3B8] text-[10px] uppercase tracking-wider">Formula Model</span>
+<span class="text-primary font-bold text-[12px] font-mono mt-0.5">Karvonen HRR</span>
+</div>
+<!-- Chip 4: Calculated Ceiling -->
+<div class="p-2.5 rounded-xl bg-[#080C14]/70 border border-[#334155] flex flex-col">
+<span class="text-[#94A3B8] text-[10px] uppercase tracking-wider">Calculated Ceiling</span>
+<span class="text-[#FF5A22] font-bold text-[13px] font-mono mt-0.5">HRmax 181 <span class="text-[#64748B] font-normal text-[11px]">BPM</span></span>
+</div>
+</div>
+<!-- Explanatory Footnote -->
+<div class="flex items-start gap-1.5 pt-1 text-[11px] text-[#94A3B8] leading-tight">
+<span class="material-symbols-outlined text-[14px] text-primary shrink-0 mt-0.5" data-icon="shield">shield</span>
+<p class="font-body-md text-[11px]">
+          Session zones frozen at recording timestamp to guarantee historical metric integrity against subsequent physiological drift.
+        </p>
+</div>
+</section>
+</main>
+<!-- 5. Export Actions (Sticky Bottom Bar with dark glass background, 1px top border #334155) -->
+<footer class="fixed bottom-0 inset-x-0 z-50 bg-[#0B0F19]/90 backdrop-blur-md border-t border-[#334155] px-margin py-3">
+<div class="max-w-md mx-auto grid grid-cols-2 gap-3">
+<!-- Export CSV Button (Biometric Gated) -->
+<button class="h-[52px] px-3 rounded-xl bg-[#1E293B] border border-[#3B82F6]/60 text-white font-label-md text-[11px] font-bold tracking-wider uppercase flex items-center justify-center gap-2 shadow-lg active:scale-95 active:bg-[#3B82F6]/20 transition-all">
+<span class="material-symbols-outlined text-[#38BDF8] text-[20px]" data-icon="fingerprint">fingerprint</span>
+<div class="flex flex-col text-left leading-tight">
+<span>Export CSV</span>
+<span class="text-[8px] text-[#38BDF8] font-normal tracking-normal lowercase">biometric gated</span>
+</div>
+</button>
+<!-- Export JSON Button -->
+<button class="h-[52px] px-3 rounded-xl bg-[#1E293B] border border-[#10B981]/60 text-white font-label-md text-[11px] font-bold tracking-wider uppercase flex items-center justify-center gap-2 shadow-lg active:scale-95 active:bg-[#10B981]/20 transition-all">
+<span class="material-symbols-outlined text-[#10B981] text-[20px]" data-icon="data_object">data_object</span>
+<div class="flex flex-col text-left leading-tight">
+<span>Export JSON</span>
+<span class="text-[8px] text-[#10B981] font-normal tracking-normal lowercase">full raw 1hz</span>
+</div>
+</button>
+</div>
+</footer>
+</body></html>
