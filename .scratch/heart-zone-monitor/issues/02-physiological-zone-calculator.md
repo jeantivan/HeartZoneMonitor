@@ -4,12 +4,16 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] Calculates Maximum Heart Rate using the Tanaka formula: `HRmax = 208 - (0.7 * age)`.
-- [ ] Supports direct manual override of Maximum Heart Rate, bypassing formula estimation when provided.
-- [ ] Calculates Heart Zone boundaries using Karvonen Heart Rate Reserve (%HRR): `Target HR = HRrest + % * (HRmax - HRrest)` when resting heart rate is provided.
-- [ ] Falls back cleanly to %HRmax calculation: `Target HR = % * HRmax` when resting heart rate is omitted.
-- [ ] Defines 5 standardized Heart Zone boundaries: Zone 1 (50–60%), Zone 2 (60–70%), Zone 3 (70–80%), Zone 4 (80–90%), Zone 5 (90–100%).
-- [ ] Maps each Heart Zone to its designated color palette: Zone 1 Cool Slate (`#64748B`), Zone 2 Vibrant Blue (`#3B82F6`), Zone 3 Emerald Green (`#10B981`), Zone 4 Vivid Amber (`#F59E0B`), Zone 5 Crimson (`#EF4444`).
-- [ ] Pure functional domain unit tests verify boundary calculations and edge cases across ages 10 to 110.
+- [x] Calculates Maximum Heart Rate using the Tanaka formula: `HRmax = 208 - (0.7 * age)`.
+- [x] Supports direct manual override of Maximum Heart Rate, bypassing formula estimation when provided.
+- [x] Calculates Heart Zone boundaries using Karvonen Heart Rate Reserve (%HRR): `Target HR = HRrest + % * (HRmax - HRrest)` when resting heart rate is provided.
+- [x] Falls back cleanly to %HRmax calculation: `Target HR = % * HRmax` when resting heart rate is omitted.
+- [x] Defines 5 standardized Heart Zone boundaries: Zone 1 (50–60%), Zone 2 (60–70%), Zone 3 (70–80%), Zone 4 (80–90%), Zone 5 (90–100%).
+- [x] Maps each Heart Zone to its designated color palette: Zone 1 Cool Slate (`#64748B`), Zone 2 Vibrant Blue (`#3B82F6`), Zone 3 Emerald Green (`#10B981`), Zone 4 Vivid Amber (`#F59E0B`), Zone 5 Crimson (`#EF4444`).
+- [x] Pure functional domain unit tests verify boundary calculations and edge cases across ages 10 to 110.
+
+## Answer
+
+Delivered the pure functional physiological calculation engine in `com.example.heartzonemonitor.domain.calculator.ZoneCalculator` alongside domain models `HeartZone`, `ZoneCalculationMode`, `ZoneRange`, and `ZoneCalculationResult`. Implements Tanaka formula `208 - (0.7 * age)` with custom manual override, Karvonen Heart Rate Reserve (%HRR) when resting heart rate is available, standard %HRmax fallback when resting heart rate is omitted, standard 5-zone boundaries with exact color palette mapping, second-by-second BPM telemetry mapping (`getZoneForBpm`), and exhaustive unit test verification across ages 10 to 110 in `ZoneCalculatorTest`.
