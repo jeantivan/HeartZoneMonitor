@@ -52,9 +52,15 @@ abstract class AppDatabase : RoomDatabase() {
 
         private fun createDatabaseCallback(runIntegrityCheck: Boolean): RoomDatabase.Callback {
             return object : RoomDatabase.Callback() {
+                override fun onCreate(db: SupportSQLiteDatabase) {
+                    super.onCreate(db)
+                    createUserProfileSingletonTriggers(db)
+                }
+
                 override fun onOpen(db: SupportSQLiteDatabase) {
                     super.onOpen(db)
                     db.execSQL("PRAGMA foreign_keys = ON;")
+                    createUserProfileSingletonTriggers(db)
 
                     if (runIntegrityCheck) {
                         try {
@@ -71,6 +77,34 @@ abstract class AppDatabase : RoomDatabase() {
                     }
                 }
             }
+        }
+
+        private fun createUserProfileSingletonTriggers(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TRIGGER IF NOT EXISTS user_profile_singleton_insert_trigger
+                BEFORE INSERT ON user_profile
+                FOR EACH ROW
+                BEGIN
+                    SELECT CASE
+                        WHEN NEW.id != 1 THEN RAISE(ABORT, 'user_profile singleton constraint violated: id must be 1')
+                    END;
+                END;
+                """.trimIndent()
+            )
+
+            db.execSQL(
+                """
+                CREATE TRIGGER IF NOT EXISTS user_profile_singleton_update_trigger
+                BEFORE UPDATE ON user_profile
+                FOR EACH ROW
+                BEGIN
+                    SELECT CASE
+                        WHEN NEW.id != 1 THEN RAISE(ABORT, 'user_profile singleton constraint violated: id must be 1')
+                    END;
+                END;
+                """.trimIndent()
+            )
         }
     }
 }

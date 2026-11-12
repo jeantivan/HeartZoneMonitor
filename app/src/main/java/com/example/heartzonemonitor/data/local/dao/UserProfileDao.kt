@@ -1,9 +1,8 @@
 package com.example.heartzonemonitor.data.local.dao
 
 import androidx.room.Dao
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Upsert
 import com.example.heartzonemonitor.data.local.entity.UserProfileEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -19,7 +18,7 @@ interface UserProfileDao {
     @Query("SELECT COUNT(*) FROM user_profile")
     suspend fun getProfileCount(): Int
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun upsertProfile(profile: UserProfileEntity)
 
     @Query("DELETE FROM user_profile")

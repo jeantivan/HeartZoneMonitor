@@ -4,6 +4,8 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.example.heartzonemonitor.domain.model.ZoneCalculationMode
 
+typealias UserProfile = UserProfileEntity
+
 @Entity(tableName = "user_profile")
 data class UserProfileEntity(
     @PrimaryKey
