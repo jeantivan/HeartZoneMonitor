@@ -6,18 +6,24 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.example.heartzonemonitor.data.local.dao.HeartRateSampleDao
 import com.example.heartzonemonitor.data.local.dao.RememberedHrmDao
+import com.example.heartzonemonitor.data.local.dao.SessionDao
 import com.example.heartzonemonitor.data.local.dao.UserProfileDao
+import com.example.heartzonemonitor.data.local.entity.HeartRateSampleEntity
 import com.example.heartzonemonitor.data.local.entity.RememberedHrmEntity
+import com.example.heartzonemonitor.data.local.entity.SessionEntity
 import com.example.heartzonemonitor.data.local.entity.UserProfileEntity
 import net.sqlcipher.database.SupportFactory
 
 @Database(
     entities = [
         UserProfileEntity::class,
-        RememberedHrmEntity::class
+        RememberedHrmEntity::class,
+        SessionEntity::class,
+        HeartRateSampleEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -25,6 +31,10 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun userProfileDao(): UserProfileDao
 
     abstract fun rememberedHrmDao(): RememberedHrmDao
+
+    abstract fun sessionDao(): SessionDao
+
+    abstract fun heartRateSampleDao(): HeartRateSampleDao
 
     companion object {
         const val DATABASE_NAME = "heart_zone_monitor.db"
@@ -48,6 +58,57 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_2_3: Migration = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `sessions` (
+                        `id` TEXT NOT NULL,
+                        `startEpochMs` INTEGER NOT NULL,
+                        `endEpochMs` INTEGER,
+                        `elapsedDurationMs` INTEGER NOT NULL,
+                        `effectiveDurationMs` INTEGER NOT NULL,
+                        `pausedDurationMs` INTEGER NOT NULL,
+                        `status` TEXT NOT NULL,
+                        `hrmMacAddress` TEXT NOT NULL,
+                        `userAge` INTEGER NOT NULL,
+                        `calculatedHrmax` INTEGER NOT NULL,
+                        `restingHr` INTEGER,
+                        `calculationMode` TEXT NOT NULL,
+                        `avgBpm` INTEGER NOT NULL,
+                        `maxBpm` INTEGER NOT NULL,
+                        `minBpm` INTEGER NOT NULL,
+                        `zone1DurationMs` INTEGER NOT NULL,
+                        `zone2DurationMs` INTEGER NOT NULL,
+                        `zone3DurationMs` INTEGER NOT NULL,
+                        `zone4DurationMs` INTEGER NOT NULL,
+                        `zone5DurationMs` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`)
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `heart_rate_samples` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `sessionId` TEXT NOT NULL,
+                        `timestampEpochMs` INTEGER NOT NULL,
+                        `bpm` INTEGER NOT NULL,
+                        `zoneIndex` INTEGER NOT NULL,
+                        `sensorContact` INTEGER NOT NULL,
+                        FOREIGN KEY(`sessionId`) REFERENCES `sessions`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    CREATE INDEX IF NOT EXISTS `idx_heart_rate_samples_session_ts`
+                    ON `heart_rate_samples` (`sessionId` ASC, `timestampEpochMs` ASC)
+                    """.trimIndent()
+                )
+            }
+        }
+
         fun buildEncrypted(
             context: Context,
             passphrase: ByteArray,
@@ -62,7 +123,7 @@ abstract class AppDatabase : RoomDatabase() {
             )
                 .openHelperFactory(openHelperFactory)
                 .setJournalMode(JournalMode.WRITE_AHEAD_LOGGING)
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 .addCallback(createDatabaseCallback(runIntegrityCheck = true))
                 // Note: fallbackToDestructiveMigration() is strictly forbidden per ADR-0001
                 .build()
@@ -74,7 +135,7 @@ abstract class AppDatabase : RoomDatabase() {
                 AppDatabase::class.java
             )
                 .allowMainThreadQueries()
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 .addCallback(createDatabaseCallback(runIntegrityCheck = false))
                 .build()
         }
