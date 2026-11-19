@@ -27,5 +27,8 @@ jobs:
       - name: Check Domain Terminology
         run: ./scripts/check-glossary.sh
 
+      - name: Check Coding Standards
+        run: ./scripts/check-standards.sh
+
       - name: Run Unit Tests
         run: ./gradlew test -Dorg.gradle.java.home="$JAVA_HOME" -Dorg.gradle.java.installations.paths="$JAVA_HOME"

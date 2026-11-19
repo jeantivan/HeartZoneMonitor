@@ -21,6 +21,7 @@ Codebase standards and review rules live in `CODING_STANDARDS.md`.
 ### Commands
 
 - Terminology check: `./scripts/check-glossary.sh`
+- Standards check: `./scripts/check-standards.sh`
 - Unit tests: `./gradlew :app:testDebugUnitTest --tests "<class>"`
 - Full test suite: `./gradlew test`
 - Build & test environment relies on host-level JDK and Android SDK paths (execute terminal commands with `BypassSandbox: true`).
