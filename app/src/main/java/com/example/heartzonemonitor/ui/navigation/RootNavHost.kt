@@ -2,32 +2,17 @@ package com.example.heartzonemonitor.ui.navigation
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -38,14 +23,15 @@ import com.example.heartzonemonitor.ui.devices.RememberedHrmsContent
 import com.example.heartzonemonitor.ui.devices.RememberedHrmsScreen
 import com.example.heartzonemonitor.ui.devices.RememberedHrmsUiState
 import com.example.heartzonemonitor.ui.devices.RememberedHrmsViewModel
+import com.example.heartzonemonitor.ui.onboarding.OnboardingPairingActions
+import com.example.heartzonemonitor.ui.onboarding.OnboardingPairingContent
+import com.example.heartzonemonitor.ui.onboarding.OnboardingPairingScreen
+import com.example.heartzonemonitor.ui.onboarding.OnboardingPairingUiState
+import com.example.heartzonemonitor.ui.onboarding.OnboardingPairingViewModel
 import com.example.heartzonemonitor.ui.onboarding.OnboardingProfileScreen
 import com.example.heartzonemonitor.ui.onboarding.OnboardingProfileViewModel
 
 private val VoidBlack = Color(0xFF0B0F19)
-private val BorderSlate = Color(0xFF334155)
-private val AthleticLime = Color(0xFFBDCF73)
-private val TextPrimary = Color(0xFFFFFFFF)
-private val TextSecondary = Color(0xFF94A3B8)
 
 @Composable
 fun RootNavHost(
@@ -54,6 +40,7 @@ fun RootNavHost(
     navController: NavHostController = rememberNavController(),
     onExitApp: () -> Unit = {},
     onboardingViewModelFactory: () -> OnboardingProfileViewModel,
+    onboardingPairingViewModelFactory: (() -> OnboardingPairingViewModel)? = null,
     rememberedHrmsViewModelFactory: (() -> RememberedHrmsViewModel)? = null
 ) {
     val navState by rootViewModel.navState.collectAsState()
@@ -95,16 +82,36 @@ fun RootNavHost(
                     }
 
                     composable(NavDestinations.ONBOARDING_PAIRING) {
-                        OnboardingPairingPlaceholder(
-                            onPairLater = {
-                                navController.navigate(NavDestinations.MAIN_GRAPH) {
-                                    popUpTo(NavDestinations.ONBOARDING_GRAPH) {
-                                        inclusive = true
-                                    }
-                                    launchSingleTop = true
+                        val navigateToMain = {
+                            navController.navigate(NavDestinations.MAIN_GRAPH) {
+                                popUpTo(NavDestinations.ONBOARDING_GRAPH) {
+                                    inclusive = true
                                 }
+                                launchSingleTop = true
                             }
-                        )
+                        }
+
+                        if (onboardingPairingViewModelFactory != null) {
+                            val pairingViewModel: OnboardingPairingViewModel = viewModel(
+                                factory = object : ViewModelProvider.Factory {
+                                    @Suppress("UNCHECKED_CAST")
+                                    override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                                        onboardingPairingViewModelFactory() as T
+                                }
+                            )
+                            OnboardingPairingScreen(
+                                viewModel = pairingViewModel,
+                                onPairingComplete = navigateToMain,
+                                onPairLater = navigateToMain
+                            )
+                        } else {
+                            OnboardingPairingContent(
+                                uiState = OnboardingPairingUiState(),
+                                actions = OnboardingPairingActions(
+                                    onPairLater = navigateToMain
+                                )
+                            )
+                        }
                     }
                 }
 
@@ -121,25 +128,31 @@ fun RootNavHost(
                         route = NavDestinations.MAIN_GRAPH
                     ) {
                         composable(NavDestinations.LIVE_SESSION) {
+                            val activeHrm by rootViewModel.activeHrm.collectAsState()
                             MainShell(
                                 userProfile = userProfile,
                                 initialTab = MainTab.LIVE_SESSION,
+                                activeHrm = activeHrm,
                                 onManageDevices = navigateToDevices,
                                 modifier = Modifier.fillMaxSize()
                             )
                         }
                         composable(NavDestinations.SESSION_HISTORY) {
+                            val activeHrm by rootViewModel.activeHrm.collectAsState()
                             MainShell(
                                 userProfile = userProfile,
                                 initialTab = MainTab.SESSION_HISTORY,
+                                activeHrm = activeHrm,
                                 onManageDevices = navigateToDevices,
                                 modifier = Modifier.fillMaxSize()
                             )
                         }
                         composable(NavDestinations.SETTINGS) {
+                            val activeHrm by rootViewModel.activeHrm.collectAsState()
                             MainShell(
                                 userProfile = userProfile,
                                 initialTab = MainTab.SETTINGS,
+                                activeHrm = activeHrm,
                                 onManageDevices = navigateToDevices,
                                 modifier = Modifier.fillMaxSize()
                             )
@@ -166,80 +179,6 @@ fun RootNavHost(
                             }
                         }
                     }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun OnboardingPairingPlaceholder(
-    onPairLater: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        modifier = modifier.fillMaxSize(),
-        color = VoidBlack
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(24.dp),
-            verticalArrangement = Arrangement.SpaceBetween,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 32.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = "STEP 2 OF 2",
-                    fontSize = 12.sp,
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.5.sp,
-                    color = AthleticLime
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = "PAIR HEART RATE MONITOR",
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.sp,
-                    color = TextPrimary
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = "Connect your standard Bluetooth LE Heart Rate Monitor (0x180D) or choose to pair later in Settings.",
-                    fontSize = 14.sp,
-                    color = TextSecondary
-                )
-            }
-
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 24.dp)
-            ) {
-                OutlinedButton(
-                    onClick = onPairLater,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp)
-                        .border(1.dp, BorderSlate, RoundedCornerShape(28.dp)),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = TextPrimary
-                    ),
-                    shape = RoundedCornerShape(28.dp)
-                ) {
-                    Text(
-                        text = "PAIR LATER",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.5.sp
-                    )
                 }
             }
         }

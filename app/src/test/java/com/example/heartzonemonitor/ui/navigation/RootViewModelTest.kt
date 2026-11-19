@@ -1,6 +1,8 @@
 package com.example.heartzonemonitor.ui.navigation
 
+import com.example.heartzonemonitor.data.local.FakeRememberedHrmDao
 import com.example.heartzonemonitor.data.local.FakeUserProfileDao
+import com.example.heartzonemonitor.data.local.entity.RememberedHrmEntity
 import com.example.heartzonemonitor.data.local.entity.UserProfileEntity
 import com.example.heartzonemonitor.domain.model.ZoneCalculationMode
 import kotlinx.coroutines.Dispatchers
@@ -14,6 +16,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -84,6 +87,43 @@ class RootViewModelTest {
         val nextState = channel.receive()
         assertTrue(nextState is RootNavState.Ready)
         assertEquals(newProfile, (nextState as RootNavState.Ready).userProfile)
+
+        collectJob.cancel()
+    }
+
+    @Test
+    fun `activeHrm emits null when rememberedHrmDao is omitted`() = runTest(testDispatcher) {
+        val viewModel = RootViewModel(userProfileDao = fakeDao)
+        assertNull(viewModel.activeHrm.first())
+    }
+
+    @Test
+    fun `activeHrm tracks Active HRM persistence and deletion reactively`() = runTest(testDispatcher) {
+        val fakeHrmDao = FakeRememberedHrmDao()
+        val viewModel = RootViewModel(
+            userProfileDao = fakeDao,
+            rememberedHrmDao = fakeHrmDao
+        )
+        val channel = Channel<RememberedHrmEntity?>(Channel.UNLIMITED)
+        val collectJob = launch {
+            viewModel.activeHrm.collect { channel.send(it) }
+        }
+
+        assertNull(channel.receive())
+
+        val activeStrap = RememberedHrmEntity(
+            macAddress = "D4:36:39:88:21:9B",
+            advertisedName = "COOSPO H808S",
+            customNickname = null,
+            lastSeenTimestamp = 5_000L,
+            batteryLevel = null,
+            isActive = true
+        )
+        fakeHrmDao.upsertHrm(activeStrap)
+        assertEquals(activeStrap, channel.receive())
+
+        fakeHrmDao.deleteHrmByMacAddress(activeStrap.macAddress)
+        assertNull(channel.receive())
 
         collectJob.cancel()
     }

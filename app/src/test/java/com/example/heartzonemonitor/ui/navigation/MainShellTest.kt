@@ -3,11 +3,16 @@ package com.example.heartzonemonitor.ui.navigation
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import com.example.heartzonemonitor.data.local.entity.RememberedHrmEntity
 import com.example.heartzonemonitor.data.local.entity.UserProfileEntity
 import com.example.heartzonemonitor.domain.model.ZoneCalculationMode
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -28,6 +33,15 @@ class MainShellTest {
         customHrmax = null,
         calculationMode = ZoneCalculationMode.KARVONEN,
         updatedAtEpochMs = 1000L
+    )
+
+    private val activeHrm = RememberedHrmEntity(
+        macAddress = "D4:36:39:88:21:9B",
+        advertisedName = "COOSPO H808S",
+        customNickname = "Chest Strap",
+        lastSeenTimestamp = 2000L,
+        batteryLevel = 92,
+        isActive = true
     )
 
     @Test
@@ -83,5 +97,46 @@ class MainShellTest {
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithText("HISTORY").assertDoesNotExist()
         composeTestRule.onNodeWithText("SETTINGS").assertDoesNotExist()
+    }
+
+    @Test
+    fun `when no Active HRM is paired, Live Session shows prominent notice, Settings shortcut, and disabled Start Session`() {
+        var manageDevicesClicked = false
+
+        composeTestRule.activity.setContent {
+            MainShell(
+                userProfile = testProfile,
+                activeHrm = null,
+                onManageDevices = { manageDevicesClicked = true }
+            )
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("No Heart Rate Monitor paired").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithTag("start_session_button")
+            .performScrollTo()
+            .assertIsDisplayed()
+            .assertIsNotEnabled()
+        composeTestRule.onNodeWithText("Start Session").assertIsNotEnabled()
+
+        composeTestRule.onNodeWithText("Pair HRM in Settings")
+            .performScrollTo()
+            .performClick()
+        assertTrue(manageDevicesClicked)
+    }
+
+    @Test
+    fun `when Active HRM is paired, Live Session hides no-HRM notice and renders live session surface`() {
+        composeTestRule.activity.setContent {
+            MainShell(
+                userProfile = testProfile,
+                activeHrm = activeHrm
+            )
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("No Heart Rate Monitor paired").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("start_session_button").assertDoesNotExist()
+        composeTestRule.onNodeWithText("LIVE").assertIsDisplayed()
     }
 }

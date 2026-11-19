@@ -31,8 +31,10 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.heartzonemonitor.data.local.entity.RememberedHrmEntity
 import com.example.heartzonemonitor.data.local.entity.UserProfileEntity
 import com.example.heartzonemonitor.prototype.LiveSessionPrototypeScreen
+import com.example.heartzonemonitor.ui.session.LiveSessionNoHrmNotice
 
 // Athletic Monolith Design Tokens
 private val VoidBlack = Color(0xFF0B0F19)
@@ -50,7 +52,8 @@ enum class MainTab(val route: String, val label: String) {
 
 data class MainShellUiState(
     val selectedTab: MainTab = MainTab.LIVE_SESSION,
-    val isImmersionMode: Boolean = false
+    val isImmersionMode: Boolean = false,
+    val activeHrm: RememberedHrmEntity? = null
 )
 
 data class MainShellActions(
@@ -63,12 +66,16 @@ fun MainShell(
     userProfile: UserProfileEntity?,
     modifier: Modifier = Modifier,
     initialTab: MainTab = MainTab.LIVE_SESSION,
+    activeHrm: RememberedHrmEntity? = null,
     onManageDevices: () -> Unit = {}
 ) {
     var selectedTab by rememberSaveable { mutableStateOf(initialTab) }
 
     MainShellContent(
-        uiState = MainShellUiState(selectedTab = selectedTab),
+        uiState = MainShellUiState(
+            selectedTab = selectedTab,
+            activeHrm = activeHrm
+        ),
         actions = MainShellActions(
             onTabSelected = { selectedTab = it },
             onManageDevices = onManageDevices
@@ -104,7 +111,13 @@ fun MainShellContent(
         ) {
             when (uiState.selectedTab) {
                 MainTab.LIVE_SESSION -> {
-                    LiveSessionPrototypeScreen()
+                    if (uiState.activeHrm == null) {
+                        LiveSessionNoHrmNotice(
+                            onPairHrmInSettings = actions.onManageDevices
+                        )
+                    } else {
+                        LiveSessionPrototypeScreen()
+                    }
                 }
                 MainTab.SESSION_HISTORY -> {
                     SessionHistoryPlaceholder()
