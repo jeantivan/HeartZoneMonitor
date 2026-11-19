@@ -140,6 +140,21 @@ abstract class AppDatabase : RoomDatabase() {
                 .build()
         }
 
+        internal fun buildPersistentForTesting(
+            context: Context,
+            databaseName: String
+        ): AppDatabase {
+            return Room.databaseBuilder(
+                context.applicationContext,
+                AppDatabase::class.java,
+                databaseName
+            )
+                .allowMainThreadQueries()
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .addCallback(createDatabaseCallback(runIntegrityCheck = false))
+                .build()
+        }
+
         private fun createDatabaseCallback(runIntegrityCheck: Boolean): RoomDatabase.Callback {
             return object : RoomDatabase.Callback() {
                 override fun onCreate(db: SupportSQLiteDatabase) {
@@ -167,6 +182,8 @@ abstract class AppDatabase : RoomDatabase() {
                             throw IllegalStateException("Failed to verify SQLCipher integrity", e)
                         }
                     }
+
+                    SessionCrashReconciler.reconcile(db)
                 }
             }
         }
