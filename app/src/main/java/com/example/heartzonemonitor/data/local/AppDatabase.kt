@@ -4,22 +4,49 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.example.heartzonemonitor.data.local.dao.RememberedHrmDao
 import com.example.heartzonemonitor.data.local.dao.UserProfileDao
+import com.example.heartzonemonitor.data.local.entity.RememberedHrmEntity
 import com.example.heartzonemonitor.data.local.entity.UserProfileEntity
 import net.sqlcipher.database.SupportFactory
 
 @Database(
-    entities = [UserProfileEntity::class],
-    version = 1,
+    entities = [
+        UserProfileEntity::class,
+        RememberedHrmEntity::class
+    ],
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun userProfileDao(): UserProfileDao
 
+    abstract fun rememberedHrmDao(): RememberedHrmDao
+
     companion object {
         const val DATABASE_NAME = "heart_zone_monitor.db"
+
+        val MIGRATION_1_2: Migration = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `remembered_hrms` (
+                        `macAddress` TEXT NOT NULL,
+                        `advertisedName` TEXT NOT NULL,
+                        `customNickname` TEXT,
+                        `lastSeenTimestamp` INTEGER NOT NULL,
+                        `batteryLevel` INTEGER,
+                        `isActive` INTEGER NOT NULL,
+                        PRIMARY KEY(`macAddress`)
+                    )
+                    """.trimIndent()
+                )
+                createRememberedHrmSingleActiveTriggers(db)
+            }
+        }
 
         fun buildEncrypted(
             context: Context,
@@ -35,6 +62,7 @@ abstract class AppDatabase : RoomDatabase() {
             )
                 .openHelperFactory(openHelperFactory)
                 .setJournalMode(JournalMode.WRITE_AHEAD_LOGGING)
+                .addMigrations(MIGRATION_1_2)
                 .addCallback(createDatabaseCallback(runIntegrityCheck = true))
                 // Note: fallbackToDestructiveMigration() is strictly forbidden per ADR-0001
                 .build()
@@ -46,6 +74,7 @@ abstract class AppDatabase : RoomDatabase() {
                 AppDatabase::class.java
             )
                 .allowMainThreadQueries()
+                .addMigrations(MIGRATION_1_2)
                 .addCallback(createDatabaseCallback(runIntegrityCheck = false))
                 .build()
         }
@@ -55,12 +84,14 @@ abstract class AppDatabase : RoomDatabase() {
                 override fun onCreate(db: SupportSQLiteDatabase) {
                     super.onCreate(db)
                     createUserProfileSingletonTriggers(db)
+                    createRememberedHrmSingleActiveTriggers(db)
                 }
 
                 override fun onOpen(db: SupportSQLiteDatabase) {
                     super.onOpen(db)
                     db.execSQL("PRAGMA foreign_keys = ON;")
                     createUserProfileSingletonTriggers(db)
+                    createRememberedHrmSingleActiveTriggers(db)
 
                     if (runIntegrityCheck) {
                         try {
@@ -102,6 +133,32 @@ abstract class AppDatabase : RoomDatabase() {
                     SELECT CASE
                         WHEN NEW.id != 1 THEN RAISE(ABORT, 'user_profile singleton constraint violated: id must be 1')
                     END;
+                END;
+                """.trimIndent()
+            )
+        }
+
+        private fun createRememberedHrmSingleActiveTriggers(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TRIGGER IF NOT EXISTS remembered_hrms_single_active_insert_trigger
+                AFTER INSERT ON remembered_hrms
+                FOR EACH ROW
+                WHEN NEW.isActive = 1
+                BEGIN
+                    UPDATE remembered_hrms SET isActive = 0 WHERE macAddress != NEW.macAddress AND isActive = 1;
+                END;
+                """.trimIndent()
+            )
+
+            db.execSQL(
+                """
+                CREATE TRIGGER IF NOT EXISTS remembered_hrms_single_active_update_trigger
+                AFTER UPDATE OF isActive ON remembered_hrms
+                FOR EACH ROW
+                WHEN NEW.isActive = 1
+                BEGIN
+                    UPDATE remembered_hrms SET isActive = 0 WHERE macAddress != NEW.macAddress AND isActive = 1;
                 END;
                 """.trimIndent()
             )
