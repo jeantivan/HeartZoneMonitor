@@ -4,5 +4,8 @@ set -e
 echo "Running domain terminology check..."
 ./scripts/check-glossary.sh
 
+echo "Running coding standards check..."
+./scripts/check-standards.sh
+
 echo "Running pre-commit verification (:app:compileDebugUnitTestKotlin :app:testDebugUnitTest)..."
 ./gradlew :app:compileDebugUnitTestKotlin :app:testDebugUnitTest
