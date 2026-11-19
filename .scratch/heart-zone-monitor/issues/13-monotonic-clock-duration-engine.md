@@ -4,12 +4,12 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] Captures `startEpochMs` via `System.currentTimeMillis()` once at session start for calendar display and export metadata.
-- [ ] Tracks `activeIntervalStartRealtime` on entering `Recording`; accumulates `effectiveDurationMs += (elapsedRealtime - activeIntervalStartRealtime)` on pause.
-- [ ] Tracks `pauseIntervalStartRealtime` on entering `Paused`; accumulates `pausedDurationMs += (elapsedRealtime - pauseIntervalStartRealtime)` on resume.
-- [ ] Exposes instantaneous duration formulas:
+- [x] Captures `startEpochMs` via `System.currentTimeMillis()` once at session start for calendar display and export metadata.
+- [x] Tracks `activeIntervalStartRealtime` on entering `Recording`; accumulates `effectiveDurationMs += (elapsedRealtime - activeIntervalStartRealtime)` on pause.
+- [x] Tracks `pauseIntervalStartRealtime` on entering `Paused`; accumulates `pausedDurationMs += (elapsedRealtime - pauseIntervalStartRealtime)` on resume.
+- [x] Exposes instantaneous duration formulas:
   - $\text{Effective Duration} = \text{accumulatedEffectiveMs} + (\text{if Recording then } \text{elapsedRealtime}() - \text{activeIntervalStartRealtime} \text{ else } 0)$
   - $\text{Elapsed Duration} = \text{Effective Duration} + \text{Paused Duration}$
-- [ ] Unit tests verify interval accumulation accuracy across simulated state changes and simulated clock jumps.
+- [x] Unit tests verify interval accumulation accuracy across simulated state changes and simulated clock jumps.
