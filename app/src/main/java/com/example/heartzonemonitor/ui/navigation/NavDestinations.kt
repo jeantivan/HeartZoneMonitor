@@ -10,4 +10,5 @@ object NavDestinations {
     const val LIVE_SESSION = "session/live"
     const val SESSION_HISTORY = "history"
     const val SETTINGS = "settings"
+    const val DEVICES = "devices"
 }

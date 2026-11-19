@@ -33,6 +33,11 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
+import com.example.heartzonemonitor.ui.devices.RememberedHrmsActions
+import com.example.heartzonemonitor.ui.devices.RememberedHrmsContent
+import com.example.heartzonemonitor.ui.devices.RememberedHrmsScreen
+import com.example.heartzonemonitor.ui.devices.RememberedHrmsUiState
+import com.example.heartzonemonitor.ui.devices.RememberedHrmsViewModel
 import com.example.heartzonemonitor.ui.onboarding.OnboardingProfileScreen
 import com.example.heartzonemonitor.ui.onboarding.OnboardingProfileViewModel
 
@@ -48,7 +53,8 @@ fun RootNavHost(
     modifier: Modifier = Modifier,
     navController: NavHostController = rememberNavController(),
     onExitApp: () -> Unit = {},
-    onboardingViewModelFactory: () -> OnboardingProfileViewModel
+    onboardingViewModelFactory: () -> OnboardingProfileViewModel,
+    rememberedHrmsViewModelFactory: (() -> RememberedHrmsViewModel)? = null
 ) {
     val navState by rootViewModel.navState.collectAsState()
 
@@ -104,6 +110,11 @@ fun RootNavHost(
 
                 if (hasProfile) {
                     val userProfile = (state as? RootNavState.Ready)?.userProfile
+                    val navigateToDevices = {
+                        navController.navigate(NavDestinations.DEVICES) {
+                            launchSingleTop = true
+                        }
+                    }
 
                     navigation(
                         startDestination = NavDestinations.LIVE_SESSION,
@@ -113,6 +124,7 @@ fun RootNavHost(
                             MainShell(
                                 userProfile = userProfile,
                                 initialTab = MainTab.LIVE_SESSION,
+                                onManageDevices = navigateToDevices,
                                 modifier = Modifier.fillMaxSize()
                             )
                         }
@@ -120,6 +132,7 @@ fun RootNavHost(
                             MainShell(
                                 userProfile = userProfile,
                                 initialTab = MainTab.SESSION_HISTORY,
+                                onManageDevices = navigateToDevices,
                                 modifier = Modifier.fillMaxSize()
                             )
                         }
@@ -127,8 +140,30 @@ fun RootNavHost(
                             MainShell(
                                 userProfile = userProfile,
                                 initialTab = MainTab.SETTINGS,
+                                onManageDevices = navigateToDevices,
                                 modifier = Modifier.fillMaxSize()
                             )
+                        }
+                        composable(NavDestinations.DEVICES) {
+                            val devicesViewModel = remember {
+                                rememberedHrmsViewModelFactory?.invoke()
+                            }
+                            if (devicesViewModel != null) {
+                                RememberedHrmsScreen(
+                                    viewModel = devicesViewModel,
+                                    onNavigateBack = { navController.popBackStack() },
+                                    onScanForNewHrm = {
+                                        // Scanning screen route will be wired in Ticket 11
+                                    }
+                                )
+                            } else {
+                                RememberedHrmsContent(
+                                    uiState = RememberedHrmsUiState(),
+                                    actions = RememberedHrmsActions(
+                                        onNavigateBack = { navController.popBackStack() }
+                                    )
+                                )
+                            }
                         }
                     }
                 }

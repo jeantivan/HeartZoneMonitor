@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import com.example.heartzonemonitor.core.security.EncryptedPassphraseStorage
 import com.example.heartzonemonitor.core.security.KeystoreManager
 import com.example.heartzonemonitor.data.local.AppDatabase
+import com.example.heartzonemonitor.ui.devices.RememberedHrmsViewModel
 import com.example.heartzonemonitor.ui.navigation.RootNavHost
 import com.example.heartzonemonitor.ui.navigation.RootViewModel
 import com.example.heartzonemonitor.ui.onboarding.OnboardingProfileViewModel
@@ -43,6 +44,9 @@ class MainActivity : ComponentActivity() {
                         onExitApp = { finish() },
                         onboardingViewModelFactory = {
                             OnboardingProfileViewModel(userProfileDao)
+                        },
+                        rememberedHrmsViewModelFactory = {
+                            RememberedHrmsViewModel(database.rememberedHrmDao())
                         }
                     )
                 }

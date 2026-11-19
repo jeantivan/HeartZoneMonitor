@@ -7,17 +7,22 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -49,20 +54,25 @@ data class MainShellUiState(
 )
 
 data class MainShellActions(
-    val onTabSelected: (MainTab) -> Unit = {}
+    val onTabSelected: (MainTab) -> Unit = {},
+    val onManageDevices: () -> Unit = {}
 )
 
 @Composable
 fun MainShell(
     userProfile: UserProfileEntity?,
     modifier: Modifier = Modifier,
-    initialTab: MainTab = MainTab.LIVE_SESSION
+    initialTab: MainTab = MainTab.LIVE_SESSION,
+    onManageDevices: () -> Unit = {}
 ) {
-    var selectedTab by remember { mutableStateOf(initialTab) }
+    var selectedTab by rememberSaveable { mutableStateOf(initialTab) }
 
     MainShellContent(
         uiState = MainShellUiState(selectedTab = selectedTab),
-        actions = MainShellActions(onTabSelected = { selectedTab = it }),
+        actions = MainShellActions(
+            onTabSelected = { selectedTab = it },
+            onManageDevices = onManageDevices
+        ),
         userProfile = userProfile,
         modifier = modifier
     )
@@ -100,7 +110,10 @@ fun MainShellContent(
                     SessionHistoryPlaceholder()
                 }
                 MainTab.SETTINGS -> {
-                    SettingsPlaceholder(userProfile = userProfile)
+                    SettingsPlaceholder(
+                        userProfile = userProfile,
+                        onManageDevices = actions.onManageDevices
+                    )
                 }
             }
         }
@@ -178,7 +191,8 @@ fun SessionHistoryPlaceholder(modifier: Modifier = Modifier) {
 @Composable
 fun SettingsPlaceholder(
     userProfile: UserProfileEntity?,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onManageDevices: () -> Unit = {}
 ) {
     Surface(
         modifier = modifier.fillMaxSize(),
@@ -204,6 +218,25 @@ fun SettingsPlaceholder(
                     fontSize = 14.sp,
                     color = TextSecondary,
                     modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+            Button(
+                onClick = onManageDevices,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 56.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = AthleticLime,
+                    contentColor = VoidBlack
+                )
+            ) {
+                Text(
+                    text = "Manage Heart Rate Monitors",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.5.sp
                 )
             }
         }
