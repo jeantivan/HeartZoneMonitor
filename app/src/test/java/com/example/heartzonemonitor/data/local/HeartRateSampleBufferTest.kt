@@ -250,6 +250,52 @@ class HeartRateSampleBufferTest {
         assertEquals(100, sampleDao.getSampleCountForSession("session-1"))
     }
 
+    @Test
+    fun discard_cancelsPeriodicFlushAndClearsBufferWithoutWritingToDao() = runTest {
+        val sampleDao = FakeHeartRateSampleDao()
+        val buffer = HeartRateSampleBuffer(
+            sampleDao = sampleDao,
+            scope = this,
+            flushIntervalMs = 5_000L
+        )
+
+        buffer.startPeriodicFlush()
+        buffer.enqueue(createSample(timestampEpochMs = 1_000L, bpm = 120))
+        buffer.enqueue(createSample(timestampEpochMs = 2_000L, bpm = 124))
+        buffer.enqueue(createSample(timestampEpochMs = 3_000L, bpm = 128))
+
+        assertEquals(3, buffer.pendingCount())
+        assertEquals(0, sampleDao.batchCallCount)
+
+        buffer.discard()
+
+        assertEquals(0, buffer.pendingCount())
+        assertEquals(0, sampleDao.batchCallCount)
+        assertEquals(0, sampleDao.getSampleCountForSession("session-1"))
+
+        // Advancing virtual time past several flush intervals must not trigger any writes
+        advanceTimeBy(15_000L)
+        runCurrent()
+        assertEquals(0, buffer.pendingCount())
+        assertEquals(0, sampleDao.batchCallCount)
+        assertEquals(0, sampleDao.getSampleCountForSession("session-1"))
+    }
+
+    @Test
+    fun discard_onEmptyBufferWithoutActiveLoopIsSafeNoOp() = runTest {
+        val sampleDao = FakeHeartRateSampleDao()
+        val buffer = HeartRateSampleBuffer(
+            sampleDao = sampleDao,
+            scope = this,
+            flushIntervalMs = 5_000L
+        )
+
+        buffer.discard()
+
+        assertEquals(0, buffer.pendingCount())
+        assertEquals(0, sampleDao.batchCallCount)
+    }
+
     private fun createSample(
         sessionId: String = "session-1",
         timestampEpochMs: Long,

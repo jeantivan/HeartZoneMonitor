@@ -106,6 +106,22 @@ class HeartRateSampleBuffer(
         flush()
     }
 
+    /**
+     * Cancels any active periodic flush loop and clears all buffered Heart Rate Samples
+     * without persisting them to [HeartRateSampleDao].
+     */
+    suspend fun discard() {
+        val jobToCancel = synchronized(jobLock) {
+            flushJob.also { flushJob = null }
+        }
+        jobToCancel?.cancelAndJoin()
+        flushMutex.withLock {
+            bufferMutex.withLock {
+                buffer.clear()
+            }
+        }
+    }
+
     /** Immediately flushes buffered Heart Rate Samples when the app moves to the background. */
     suspend fun onAppBackgrounded() {
         flush()
