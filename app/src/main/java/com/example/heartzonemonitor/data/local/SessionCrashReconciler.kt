@@ -5,19 +5,20 @@ import com.example.heartzonemonitor.data.local.dao.HeartRateSampleDao
 import com.example.heartzonemonitor.data.local.dao.SessionDao
 import com.example.heartzonemonitor.data.local.entity.SessionEntity
 import com.example.heartzonemonitor.data.local.entity.SessionStatus
-import kotlin.math.roundToInt
+import com.example.heartzonemonitor.domain.calculator.SampleMetricPoint
+import com.example.heartzonemonitor.domain.calculator.SessionMetricsCalculator
 
 /**
  * Reconciles incomplete Sessions left in [SessionStatus.RECORDING] or [SessionStatus.PAUSED]
  * after OS process death, battery depletion, or ungraceful shutdown.
  *
- * Persisted Heart Rate Samples are salvaged into summary metrics and each incomplete Session is
- * transitioned atomically to [SessionStatus.COMPLETED_UNEXPECTEDLY] without user intervention.
+ * Persisted Heart Rate Samples are salvaged into summary metrics via [SessionMetricsCalculator]
+ * and each incomplete Session is transitioned atomically to [SessionStatus.COMPLETED_UNEXPECTEDLY]
+ * without user intervention.
  */
 object SessionCrashReconciler {
 
-    private const val DATA_GAP_THRESHOLD_MS = 3_000L
-    private const val NOMINAL_SAMPLE_DURATION_MS = 1_000L
+    private val metricsCalculator = SessionMetricsCalculator()
 
     private val INCOMPLETE_STATUS_NAMES = arrayOf(
         SessionStatus.RECORDING.name,
@@ -226,85 +227,49 @@ object SessionCrashReconciler {
         session: IncompleteSessionSnapshot,
         samples: List<SamplePoint>
     ): ReconciledSessionValues {
-        if (samples.isEmpty()) {
-            val resolvedEndEpochMs = session.endEpochMs ?: session.startEpochMs
+        val orderedPoints = samples
+            .sortedWith(
+                compareBy<SamplePoint> { it.timestampEpochMs }
+                    .thenBy { it.id }
+            )
+            .map { sample ->
+                SampleMetricPoint(
+                    timestampEpochMs = sample.timestampEpochMs,
+                    bpm = sample.bpm,
+                    zoneIndex = sample.zoneIndex
+                )
+            }
+
+        val metrics = metricsCalculator.calculate(orderedPoints)
+        val latestSampleEpochMs = metrics.latestSampleEpochMs
+
+        val resolvedEndEpochMs: Long
+        val resolvedElapsedMs: Long
+        val resolvedEffectiveMs: Long
+        if (latestSampleEpochMs == null) {
+            resolvedEndEpochMs = session.endEpochMs ?: session.startEpochMs
             val wallElapsedMs = (resolvedEndEpochMs - session.startEpochMs).coerceAtLeast(0L)
-            val resolvedElapsedMs = maxOf(
+            resolvedElapsedMs = maxOf(
                 session.elapsedDurationMs,
                 wallElapsedMs,
                 session.effectiveDurationMs + session.pausedDurationMs
             ).coerceAtLeast(0L)
-            val resolvedEffectiveMs = session.effectiveDurationMs
+            resolvedEffectiveMs = session.effectiveDurationMs
                 .coerceAtLeast(0L)
                 .coerceAtMost(resolvedElapsedMs)
-            val resolvedPausedMs = (resolvedElapsedMs - resolvedEffectiveMs).coerceAtLeast(0L)
-
-            return ReconciledSessionValues(
-                endEpochMs = resolvedEndEpochMs,
-                elapsedDurationMs = resolvedElapsedMs,
-                effectiveDurationMs = resolvedEffectiveMs,
-                pausedDurationMs = resolvedPausedMs,
-                status = SessionStatus.COMPLETED_UNEXPECTEDLY,
-                avgBpm = 0,
-                maxBpm = 0,
-                minBpm = 0,
-                zone1DurationMs = 0L,
-                zone2DurationMs = 0L,
-                zone3DurationMs = 0L,
-                zone4DurationMs = 0L,
-                zone5DurationMs = 0L
-            )
+        } else {
+            resolvedEndEpochMs = latestSampleEpochMs
+            val totalZoneDurationMs = metrics.totalZoneDurationMs
+            val wallElapsedMs = (resolvedEndEpochMs - session.startEpochMs).coerceAtLeast(0L)
+            resolvedElapsedMs = maxOf(
+                session.elapsedDurationMs,
+                wallElapsedMs,
+                totalZoneDurationMs
+            ).coerceAtLeast(0L)
+            resolvedEffectiveMs = maxOf(session.effectiveDurationMs, totalZoneDurationMs)
+                .coerceAtLeast(0L)
+                .coerceAtMost(resolvedElapsedMs)
         }
-
-        val orderedSamples = samples.sortedWith(
-            compareBy<SamplePoint> { it.timestampEpochMs }
-                .thenBy { it.id }
-        )
-
-        val resolvedEndEpochMs = orderedSamples.last().timestampEpochMs
-        val avgBpm = orderedSamples.map { it.bpm }.average().roundToInt().coerceAtLeast(0)
-        val maxBpm = orderedSamples.maxOf { it.bpm }.coerceAtLeast(0)
-        val minBpm = orderedSamples.minOf { it.bpm }.coerceAtLeast(0)
-
-        var zone1DurationMs = 0L
-        var zone2DurationMs = 0L
-        var zone3DurationMs = 0L
-        var zone4DurationMs = 0L
-        var zone5DurationMs = 0L
-
-        val lastIndex = orderedSamples.lastIndex
-        for (i in orderedSamples.indices) {
-            val creditedDurationMs = if (i < lastIndex) {
-                val delta = orderedSamples[i + 1].timestampEpochMs - orderedSamples[i].timestampEpochMs
-                when {
-                    delta <= 0L -> 0L
-                    delta <= DATA_GAP_THRESHOLD_MS -> delta
-                    else -> NOMINAL_SAMPLE_DURATION_MS
-                }
-            } else {
-                NOMINAL_SAMPLE_DURATION_MS
-            }
-
-            when (orderedSamples[i].zoneIndex) {
-                1 -> zone1DurationMs += creditedDurationMs
-                2 -> zone2DurationMs += creditedDurationMs
-                3 -> zone3DurationMs += creditedDurationMs
-                4 -> zone4DurationMs += creditedDurationMs
-                5 -> zone5DurationMs += creditedDurationMs
-            }
-        }
-
-        val totalZoneDurationMs =
-            zone1DurationMs + zone2DurationMs + zone3DurationMs + zone4DurationMs + zone5DurationMs
-        val wallElapsedMs = (resolvedEndEpochMs - session.startEpochMs).coerceAtLeast(0L)
-        val resolvedElapsedMs = maxOf(
-            session.elapsedDurationMs,
-            wallElapsedMs,
-            totalZoneDurationMs
-        ).coerceAtLeast(0L)
-        val resolvedEffectiveMs = maxOf(session.effectiveDurationMs, totalZoneDurationMs)
-            .coerceAtLeast(0L)
-            .coerceAtMost(resolvedElapsedMs)
         val resolvedPausedMs = (resolvedElapsedMs - resolvedEffectiveMs).coerceAtLeast(0L)
 
         return ReconciledSessionValues(
@@ -313,14 +278,14 @@ object SessionCrashReconciler {
             effectiveDurationMs = resolvedEffectiveMs,
             pausedDurationMs = resolvedPausedMs,
             status = SessionStatus.COMPLETED_UNEXPECTEDLY,
-            avgBpm = avgBpm,
-            maxBpm = maxBpm,
-            minBpm = minBpm,
-            zone1DurationMs = zone1DurationMs,
-            zone2DurationMs = zone2DurationMs,
-            zone3DurationMs = zone3DurationMs,
-            zone4DurationMs = zone4DurationMs,
-            zone5DurationMs = zone5DurationMs
+            avgBpm = metrics.avgBpm.coerceAtLeast(0),
+            maxBpm = metrics.maxBpm.coerceAtLeast(0),
+            minBpm = metrics.minBpm.coerceAtLeast(0),
+            zone1DurationMs = metrics.zone1DurationMs,
+            zone2DurationMs = metrics.zone2DurationMs,
+            zone3DurationMs = metrics.zone3DurationMs,
+            zone4DurationMs = metrics.zone4DurationMs,
+            zone5DurationMs = metrics.zone5DurationMs
         )
     }
 
