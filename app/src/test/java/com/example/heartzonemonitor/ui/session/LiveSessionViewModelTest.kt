@@ -289,6 +289,93 @@ class LiveSessionViewModelTest {
             }
         }
 
+    @Test
+    fun `refreshDurations updates active Effective Duration only`() =
+        runTest(testDispatcher) {
+            val harness = createHarness(scope = this)
+            try {
+                val viewModel = LiveSessionViewModel(harness.repository)
+                harness.connectAndPrimeTelemetry(bpm = 150)
+                runCurrent()
+
+                viewModel.startSession()
+                runCurrent()
+                assertEquals(0L, viewModel.uiState.value.effectiveDurationMs)
+
+                harness.clock.advanceBothBy(3_000L)
+                viewModel.refreshDurations()
+                runCurrent()
+                assertEquals(3_000L, viewModel.uiState.value.effectiveDurationMs)
+
+                viewModel.pauseSession()
+                runCurrent()
+                harness.clock.advanceBothBy(5_000L)
+                viewModel.refreshDurations()
+                runCurrent()
+                assertEquals(3_000L, viewModel.uiState.value.effectiveDurationMs)
+            } finally {
+                harness.close()
+            }
+        }
+
+    @Test
+    fun `micro session prompt maps and dispatches actions`() =
+        runTest(testDispatcher) {
+            val harness = createHarness(scope = this)
+            try {
+                val viewModel = LiveSessionViewModel(harness.repository)
+                harness.connectAndPrimeTelemetry(bpm = 150)
+                runCurrent()
+
+                // Start and stop under 10 seconds -> micro-session discard prompt active
+                viewModel.startSession()
+                runCurrent()
+                harness.clock.advanceBothBy(4_000L)
+                harness.emitHrPacket(macAddress = ACTIVE_HRM_MAC, bpm = 150)
+                runCurrent()
+
+                viewModel.stopSession()
+                runCurrent()
+                assertTrue(viewModel.uiState.value.isRecording)
+                assertTrue(viewModel.uiState.value.pendingMicroSessionDiscardPrompt)
+
+                // Dismiss keeps Session active and clears prompt
+                viewModel.dismissMicroSessionPrompt()
+                runCurrent()
+                assertTrue(viewModel.uiState.value.isRecording)
+                assertFalse(viewModel.uiState.value.pendingMicroSessionDiscardPrompt)
+
+                // Trigger prompt again and confirm save
+                viewModel.stopSession()
+                runCurrent()
+                assertTrue(viewModel.uiState.value.pendingMicroSessionDiscardPrompt)
+
+                viewModel.confirmSaveMicroSession()
+                runCurrent()
+                assertFalse(viewModel.uiState.value.isRecording)
+                assertFalse(viewModel.uiState.value.pendingMicroSessionDiscardPrompt)
+                assertFalse(viewModel.uiState.value.isImmersionMode)
+
+                // Start another short session, trigger prompt, and discard
+                harness.repository.resetToIdle()
+                harness.emitHrPacket(macAddress = ACTIVE_HRM_MAC, bpm = 150)
+                runCurrent()
+                viewModel.startSession()
+                runCurrent()
+                viewModel.stopSession()
+                runCurrent()
+                assertTrue(viewModel.uiState.value.pendingMicroSessionDiscardPrompt)
+
+                viewModel.discardSession()
+                runCurrent()
+                assertFalse(viewModel.uiState.value.isRecording)
+                assertFalse(viewModel.uiState.value.pendingMicroSessionDiscardPrompt)
+                assertFalse(viewModel.uiState.value.isImmersionMode)
+            } finally {
+                harness.close()
+            }
+        }
+
     private suspend fun receiveUntil(
         channel: Channel<LiveSessionUiState>,
         predicate: (LiveSessionUiState) -> Boolean

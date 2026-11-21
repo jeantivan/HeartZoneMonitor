@@ -5,6 +5,7 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -18,6 +19,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -31,6 +33,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 
 val LiveSessionBgTopColorKey = SemanticsPropertyKey<Color>("LiveSessionBgTopColor")
 val LiveSessionBgBottomColorKey = SemanticsPropertyKey<Color>("LiveSessionBgBottomColor")
@@ -38,6 +42,7 @@ val LiveSessionBgBottomColorKey = SemanticsPropertyKey<Color>("LiveSessionBgBott
 const val LIVE_SESSION_BACKGROUND_TAG = "live_session_background"
 const val LIVE_SESSION_BPM_TEXT_TAG = "live_session_bpm_text"
 const val LIVE_SESSION_ZONE_BADGE_TAG = "live_session_zone_badge"
+private const val LIVE_SESSION_DURATION_TICK_MS = 1_000L
 
 /**
  * Stateful Live Session screen collecting [LiveSessionViewModel.uiState] and delegating to
@@ -51,6 +56,15 @@ fun LiveSessionScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
+    LaunchedEffect(uiState.isRecording) {
+        if (uiState.isRecording) {
+            while (isActive) {
+                delay(LIVE_SESSION_DURATION_TICK_MS)
+                viewModel.refreshDurations()
+            }
+        }
+    }
+
     LiveSessionContent(
         uiState = uiState,
         actions = LiveSessionActions(
@@ -58,7 +72,10 @@ fun LiveSessionScreen(
             onPauseSession = viewModel::pauseSession,
             onResumeSession = viewModel::resumeSession,
             onStopSession = viewModel::stopSession,
-            onManageDevices = onManageDevices
+            onManageDevices = onManageDevices,
+            onConfirmSaveMicroSession = viewModel::confirmSaveMicroSession,
+            onDiscardSession = viewModel::discardSession,
+            onDismissMicroSessionPrompt = viewModel::dismissMicroSessionPrompt
         ),
         modifier = modifier
     )
@@ -66,17 +83,28 @@ fun LiveSessionScreen(
 
 /**
  * Stateless Athletic Monolith Live Session content featuring full-bleed animated Heart Zone
- * background illumination, massive glanceable BPM typography, and clean slots for secondary
- * telemetry and Session controls.
+ * background illumination, massive glanceable BPM typography, 5-segment Heart Zone progress bar,
+ * focused monospace Effective Duration card, and large 56dp Session controls.
  */
-@Suppress("UNUSED_PARAMETER")
 @Composable
 fun LiveSessionContent(
     uiState: LiveSessionUiState,
     actions: LiveSessionActions = LiveSessionActions(),
     modifier: Modifier = Modifier,
-    secondaryContent: @Composable () -> Unit = {},
-    controlsContent: @Composable () -> Unit = {}
+    secondaryContent: @Composable () -> Unit = {
+        LiveSessionSecondaryTelemetry(
+            currentZone = uiState.currentZone,
+            effectiveDurationMs = uiState.effectiveDurationMs
+        )
+    },
+    controlsContent: @Composable () -> Unit = {
+        LiveSessionControlButtons(
+            isRecording = uiState.isRecording,
+            isPaused = uiState.isPaused,
+            canStartSession = uiState.canStartSession,
+            actions = actions
+        )
+    }
 ) {
     val targetColor = uiState.currentZone.toLiveSessionBackgroundColor()
     val animatedTopColor by animateColorAsState(
@@ -117,8 +145,9 @@ fun LiveSessionContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(horizontal = 16.dp, vertical = 20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             LiveSessionHeroTelemetry(
                 bpmText = bpmText,
@@ -127,6 +156,10 @@ fun LiveSessionContent(
             secondaryContent()
             controlsContent()
         }
+    }
+
+    if (uiState.pendingMicroSessionDiscardPrompt) {
+        LiveSessionMicroSessionDiscardDialog(actions = actions)
     }
 }
 

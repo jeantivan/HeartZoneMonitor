@@ -31,7 +31,8 @@ data class LiveSessionUiState(
     val effectiveDurationMs: Long = 0L,
     val batteryLevel: Int? = null,
     val canStartSession: Boolean = false,
-    val isImmersionMode: Boolean = isRecording || isPaused
+    val isImmersionMode: Boolean = isRecording || isPaused,
+    val pendingMicroSessionDiscardPrompt: Boolean = false
 )
 
 /**
@@ -42,7 +43,10 @@ data class LiveSessionActions(
     val onPauseSession: () -> Unit = {},
     val onResumeSession: () -> Unit = {},
     val onStopSession: () -> Unit = {},
-    val onManageDevices: () -> Unit = {}
+    val onManageDevices: () -> Unit = {},
+    val onConfirmSaveMicroSession: () -> Unit = {},
+    val onDiscardSession: () -> Unit = {},
+    val onDismissMicroSessionPrompt: () -> Unit = {}
 )
 
 /**
@@ -91,6 +95,26 @@ class LiveSessionViewModel(
             sessionRepository.stopSession()
         }
     }
+
+    fun confirmSaveMicroSession() {
+        viewModelScope.launch {
+            sessionRepository.confirmSaveMicroSession()
+        }
+    }
+
+    fun discardSession() {
+        viewModelScope.launch {
+            sessionRepository.discardSession()
+        }
+    }
+
+    fun dismissMicroSessionPrompt() {
+        sessionRepository.dismissMicroSessionPrompt()
+    }
+
+    fun refreshDurations() {
+        sessionRepository.refreshDurations()
+    }
 }
 
 internal fun SessionUiState.toLiveSessionUiState(): LiveSessionUiState = when (this) {
@@ -104,7 +128,8 @@ internal fun SessionUiState.toLiveSessionUiState(): LiveSessionUiState = when (t
         effectiveDurationMs = 0L,
         batteryLevel = batteryLevel,
         canStartSession = canStartSession,
-        isImmersionMode = false
+        isImmersionMode = false,
+        pendingMicroSessionDiscardPrompt = false
     )
     is SessionUiState.Recording -> LiveSessionUiState(
         activeHrm = activeHrm,
@@ -116,7 +141,8 @@ internal fun SessionUiState.toLiveSessionUiState(): LiveSessionUiState = when (t
         effectiveDurationMs = effectiveDurationMs,
         batteryLevel = batteryLevel,
         canStartSession = false,
-        isImmersionMode = true
+        isImmersionMode = true,
+        pendingMicroSessionDiscardPrompt = pendingMicroSessionDiscardPrompt
     )
     is SessionUiState.Paused -> LiveSessionUiState(
         activeHrm = activeHrm,
@@ -128,7 +154,8 @@ internal fun SessionUiState.toLiveSessionUiState(): LiveSessionUiState = when (t
         effectiveDurationMs = effectiveDurationMs,
         batteryLevel = batteryLevel,
         canStartSession = false,
-        isImmersionMode = true
+        isImmersionMode = true,
+        pendingMicroSessionDiscardPrompt = pendingMicroSessionDiscardPrompt
     )
     is SessionUiState.Completed, is SessionUiState.Discarded -> LiveSessionUiState(
         activeHrm = null,
@@ -140,6 +167,7 @@ internal fun SessionUiState.toLiveSessionUiState(): LiveSessionUiState = when (t
         effectiveDurationMs = 0L,
         batteryLevel = null,
         canStartSession = false,
-        isImmersionMode = false
+        isImmersionMode = false,
+        pendingMicroSessionDiscardPrompt = false
     )
 }
