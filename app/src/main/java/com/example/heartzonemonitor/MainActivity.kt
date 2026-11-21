@@ -15,12 +15,20 @@ import com.example.heartzonemonitor.data.ble.AndroidBleTransport
 import com.example.heartzonemonitor.data.ble.BleDeviceDiscoveryService
 import com.example.heartzonemonitor.data.ble.BlePermissionChecker
 import com.example.heartzonemonitor.data.local.AppDatabase
+import com.example.heartzonemonitor.data.session.AndroidBleDisconnectAlertNotifier
+import com.example.heartzonemonitor.data.session.SessionRepository
+import com.example.heartzonemonitor.service.AndroidRecordingServiceLauncher
+import com.example.heartzonemonitor.service.RecordingServiceCoordinator
 import com.example.heartzonemonitor.ui.devices.RememberedHrmsViewModel
 import com.example.heartzonemonitor.ui.navigation.RootNavHost
 import com.example.heartzonemonitor.ui.navigation.RootViewModel
 import com.example.heartzonemonitor.ui.onboarding.OnboardingPairingViewModel
 import com.example.heartzonemonitor.ui.onboarding.OnboardingProfileViewModel
+import com.example.heartzonemonitor.ui.session.LiveSessionViewModel
 import com.example.heartzonemonitor.ui.theme.HeartZoneMonitorTheme
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 
 class MainActivity : ComponentActivity() {
 
@@ -56,6 +64,32 @@ class MainActivity : ComponentActivity() {
         )
     }
 
+    private val appScope: CoroutineScope by lazy {
+        CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    }
+
+    private val sessionRepository: SessionRepository by lazy {
+        SessionRepository.getInstance(
+            bleTransport = bleTransport,
+            rememberedHrmDao = database.rememberedHrmDao(),
+            userProfileDao = database.userProfileDao(),
+            sessionDao = database.sessionDao(),
+            sampleDao = database.heartRateSampleDao(),
+            scope = appScope,
+            disconnectAlertNotifier = AndroidBleDisconnectAlertNotifier(applicationContext)
+        )
+    }
+
+    private var recordingServiceCoordinatorInstance: RecordingServiceCoordinator? = null
+
+    private val recordingServiceCoordinator: RecordingServiceCoordinator by lazy {
+        RecordingServiceCoordinator(
+            sessionRepository = sessionRepository,
+            launcher = AndroidRecordingServiceLauncher(applicationContext),
+            scope = appScope
+        ).also { recordingServiceCoordinatorInstance = it }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -84,12 +118,18 @@ class MainActivity : ComponentActivity() {
                             )
                         },
                         rememberedHrmsViewModelFactory = {
+                            recordingServiceCoordinator
                             RememberedHrmsViewModel(
                                 rememberedHrmDao = rememberedHrmDao,
+                                isSessionActiveFlow = sessionRepository.isSessionActiveFlow,
                                 onDisconnectActiveHrm = { macAddress ->
                                     bleTransport.disconnect(macAddress)
                                 }
                             )
+                        },
+                        liveSessionViewModelFactory = {
+                            recordingServiceCoordinator
+                            LiveSessionViewModel(sessionRepository)
                         }
                     )
                 }
@@ -98,7 +138,11 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
-        bleTransportInstance?.close()
+        recordingServiceCoordinatorInstance?.close()
+        recordingServiceCoordinatorInstance = null
+        if (!isChangingConfigurations && SessionRepository.getInstanceOrNull()?.isSessionActive != true) {
+            bleTransportInstance?.close()
+        }
         super.onDestroy()
     }
 }
