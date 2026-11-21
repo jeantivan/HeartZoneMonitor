@@ -2,6 +2,8 @@ package com.example.heartzonemonitor.data.session
 
 import com.example.heartzonemonitor.data.ble.BleCharacteristicNotification
 import com.example.heartzonemonitor.data.ble.BleConnectionState
+import com.example.heartzonemonitor.data.ble.BleOperationResult
+import com.example.heartzonemonitor.data.ble.BleReconnectionPolicy
 import com.example.heartzonemonitor.data.ble.BleTransport
 import com.example.heartzonemonitor.data.ble.BleUuids
 import com.example.heartzonemonitor.data.ble.HeartRateMeasurementParser
@@ -30,17 +32,20 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.time.Year
 import java.util.UUID
+import kotlin.coroutines.coroutineContext
 
 /**
  * Single source of truth repository managing the Session recording state machine, Active HRM
@@ -61,7 +66,9 @@ class SessionRepository(
     private val zoneCalculator: ZoneCalculator = ZoneCalculator(),
     private val metricsCalculator: SessionMetricsCalculator = SessionMetricsCalculator(),
     private val currentYearProvider: () -> Int = { Year.now().value },
-    private val sessionIdGenerator: () -> String = { UUID.randomUUID().toString() }
+    private val sessionIdGenerator: () -> String = { UUID.randomUUID().toString() },
+    private val reconnectionPolicy: BleReconnectionPolicy = BleReconnectionPolicy.Default,
+    private val disconnectAlertNotifier: BleDisconnectAlertNotifier = NoOpBleDisconnectAlertNotifier
 ) {
     private val repositoryJob = SupervisorJob(scope.coroutineContext[Job])
     private val repositoryScope = CoroutineScope(scope.coroutineContext + repositoryJob)
@@ -92,6 +99,17 @@ class SessionRepository(
     private var hasValidTelemetry: Boolean = false
     private var telemetryMacAddress: String? = null
     private var activeSession: ActiveSessionContext? = null
+
+    private var isReconnecting: Boolean = false
+    private var internalReconnectInProgress: Boolean = false
+    private var reconnectionGeneration: Long = 0L
+    private var reconnectionSessionId: String? = null
+    private var reconnectionMacAddress: String? = null
+    private var gracePeriodJob: Job? = null
+    private var reconnectionJob: Job? = null
+
+    private val _connectionState = MutableStateFlow(currentConnectionState)
+    val connectionState: StateFlow<BleConnectionState> = _connectionState.asStateFlow()
 
     private val _uiState = MutableStateFlow<SessionUiState>(
         SessionUiState.Idle(connectionState = currentConnectionState)
@@ -172,7 +190,7 @@ class SessionRepository(
                 liveBatteryLevel = null
             }
 
-            currentConnectionState = connectionState
+            updateConnectionStateLocked(connectionState)
             val isConnectedToActiveHrm = activeHrm != null &&
                 connectionState is BleConnectionState.Connected &&
                 connectionState.macAddress == activeHrm.macAddress
@@ -278,23 +296,7 @@ class SessionRepository(
                 if (current == null || current.pauseReason != null) null else current
             } ?: return@withLock false
 
-            val snapshot = durationEngine.pause()
-            sampleBuffer.onSessionPaused()
-
-            val updatedEntity = session.sessionEntity.copy(
-                status = SessionStatus.PAUSED,
-                elapsedDurationMs = snapshot.elapsedDurationMs,
-                effectiveDurationMs = snapshot.effectiveDurationMs,
-                pausedDurationMs = snapshot.pausedDurationMs
-            )
-            sessionDao.updateSession(updatedEntity)
-
-            synchronized(stateLock) {
-                session.sessionEntity = updatedEntity
-                session.pauseReason = reason
-                publishActiveStateLocked(session, snapshot)
-            }
-            true
+            pauseSessionLocked(session = session, reason = reason)
         }
 
     /**
@@ -306,6 +308,48 @@ class SessionRepository(
             val current = activeSession
             if (current == null || current.pauseReason == null) null else current
         } ?: return@withLock false
+
+        resumeSessionLocked(session = session)
+    }
+
+    // Must be called while holding transitionMutex.
+    private suspend fun pauseSessionLocked(
+        session: ActiveSessionContext,
+        reason: PauseReason
+    ): Boolean {
+        val canPause = synchronized(stateLock) {
+            activeSession === session && session.pauseReason == null
+        }
+        if (!canPause) return false
+
+        val snapshot = durationEngine.pause()
+        sampleBuffer.onSessionPaused()
+
+        val updatedEntity = session.sessionEntity.copy(
+            status = SessionStatus.PAUSED,
+            elapsedDurationMs = snapshot.elapsedDurationMs,
+            effectiveDurationMs = snapshot.effectiveDurationMs,
+            pausedDurationMs = snapshot.pausedDurationMs
+        )
+        sessionDao.updateSession(updatedEntity)
+
+        synchronized(stateLock) {
+            session.sessionEntity = updatedEntity
+            session.pauseReason = reason
+            if (reason != PauseReason.BLE_CONNECTION_LOST) {
+                cancelGracePeriodLocked()
+            }
+            publishActiveStateLocked(session, snapshot)
+        }
+        return true
+    }
+
+    // Must be called while holding transitionMutex.
+    private suspend fun resumeSessionLocked(session: ActiveSessionContext): Boolean {
+        val canResume = synchronized(stateLock) {
+            activeSession === session && session.pauseReason != null
+        }
+        if (!canResume) return false
 
         val snapshot = durationEngine.resume()
         val updatedEntity = session.sessionEntity.copy(
@@ -322,7 +366,7 @@ class SessionRepository(
             session.pendingMicroSessionDiscardPrompt = false
             publishActiveStateLocked(session, snapshot)
         }
-        true
+        return true
     }
 
     /**
@@ -353,6 +397,10 @@ class SessionRepository(
                     effectiveDurationMs = preStopSnapshot.effectiveDurationMs,
                     sampleCount = sampleCount
                 )
+            }
+
+            synchronized(stateLock) {
+                cancelReconnectionLocked(syncConnectionState = true)
             }
 
             val finalSnapshot = durationEngine.stop()
@@ -419,7 +467,11 @@ class SessionRepository(
      * duration state, and emitting [SessionUiState.Discarded].
      */
     suspend fun discardSession(): Boolean = transitionMutex.withLock {
-        val session = synchronized(stateLock) { activeSession } ?: return@withLock false
+        val session = synchronized(stateLock) {
+            val current = activeSession ?: return@withLock false
+            cancelReconnectionLocked(syncConnectionState = true)
+            current
+        }
 
         sampleBuffer.discard()
         sessionDao.deleteSessionById(session.sessionId)
@@ -472,6 +524,9 @@ class SessionRepository(
      * Cancels all internal collector and periodic flush coroutines owned by this repository.
      */
     fun close() {
+        synchronized(stateLock) {
+            cancelReconnectionLocked(syncConnectionState = false)
+        }
         repositoryJob.cancel()
         if (ownsGattClient) {
             gattClient.close()
@@ -493,22 +548,28 @@ class SessionRepository(
                 measurement.sensorContact
 
             val sampleToEnqueue: HeartRateSampleEntity? = synchronized(stateLock) {
+                if (isReconnecting) {
+                    return@synchronized null
+                }
                 val previousState = currentConnectionState
-                currentConnectionState = liveConnectionState
                 val session = activeSession
                 val targetHrm = session?.activeHrm ?: currentActiveHrm
-                if (targetHrm == null ||
-                    liveConnectionState !is BleConnectionState.Connected ||
-                    liveConnectionState.macAddress != targetHrm.macAddress
-                ) {
-                    if (previousState != liveConnectionState) {
-                        clearLiveTelemetryLocked()
-                        liveBatteryLevel = null
-                        republishCurrentStateLocked()
+                val isConnectedToTarget = targetHrm != null &&
+                    liveConnectionState is BleConnectionState.Connected &&
+                    liveConnectionState.macAddress == targetHrm.macAddress
+                if (!isConnectedToTarget) {
+                    if (session == null || session.pauseReason != null) {
+                        updateConnectionStateLocked(liveConnectionState)
+                        if (previousState != liveConnectionState) {
+                            clearLiveTelemetryLocked()
+                            liveBatteryLevel = null
+                            republishCurrentStateLocked()
+                        }
                     }
                     return@synchronized null
                 }
-                if (notification.macAddress != targetHrm.macAddress) {
+                updateConnectionStateLocked(liveConnectionState)
+                if (notification.macAddress != targetHrm!!.macAddress) {
                     return@synchronized null
                 }
                 if (previousState != liveConnectionState) {
@@ -593,38 +654,322 @@ class SessionRepository(
         }
     }
 
-    private fun onConnectionStateUpdated(newState: BleConnectionState) {
-        synchronized(stateLock) {
-            val previousState = currentConnectionState
-            currentConnectionState = newState
-            val targetMac = activeSession?.activeHrm?.macAddress ?: currentActiveHrm?.macAddress
-            val connectedToTarget = targetMac != null &&
-                newState is BleConnectionState.Connected &&
-                newState.macAddress == targetMac
+    private suspend fun onConnectionStateUpdated(newState: BleConnectionState) {
+        transitionMutex.withLock {
+            val sessionToAutoResume: ActiveSessionContext? = synchronized(stateLock) {
+                val session = activeSession
+                if (isReconnecting) {
+                    val reconnectingMac = reconnectionMacAddress ?: session?.activeHrm?.macAddress
+                    val isExternalReconnect = !internalReconnectInProgress &&
+                        session != null &&
+                        session.sessionId == reconnectionSessionId &&
+                        reconnectingMac != null &&
+                        newState is BleConnectionState.Connected &&
+                        newState.macAddress == reconnectingMac
 
-            if (!connectedToTarget || previousState != newState) {
-                clearLiveTelemetryLocked()
-                liveBatteryLevel = null
+                    if (!isExternalReconnect) {
+                        return@synchronized null
+                    }
+
+                    cancelReconnectionLocked(syncConnectionState = false)
+                    updateConnectionStateLocked(newState)
+                    clearLiveTelemetryLocked()
+                    liveBatteryLevel = null
+                    if (session!!.pauseReason == PauseReason.BLE_CONNECTION_LOST) {
+                        session
+                    } else {
+                        publishActiveStateLocked(session)
+                        null
+                    }
+                } else if (session != null &&
+                    session.pauseReason == null &&
+                    isConnectionLostForSessionLocked(newState, session.activeHrm.macAddress)
+                ) {
+                    startReconnectionLocked(session)
+                    null
+                } else {
+                    val previousState = currentConnectionState
+                    updateConnectionStateLocked(newState)
+                    val targetMac = session?.activeHrm?.macAddress ?: currentActiveHrm?.macAddress
+                    val connectedToTarget = targetMac != null &&
+                        newState is BleConnectionState.Connected &&
+                        newState.macAddress == targetMac
+
+                    if (!connectedToTarget || previousState != newState) {
+                        clearLiveTelemetryLocked()
+                        liveBatteryLevel = null
+                    }
+                    republishCurrentStateLocked()
+                    null
+                }
             }
-            republishCurrentStateLocked()
+
+            if (sessionToAutoResume != null) {
+                resumeSessionLocked(sessionToAutoResume)
+            }
         }
     }
 
     private fun onBatteryLevelUpdated(level: Int?) {
         synchronized(stateLock) {
-            val previousState = currentConnectionState
             val liveConnectionState = bleTransport.connectionState.value
-            currentConnectionState = liveConnectionState
-            val targetMac = activeSession?.activeHrm?.macAddress ?: currentActiveHrm?.macAddress
+            val session = activeSession
+            val targetMac = session?.activeHrm?.macAddress ?: currentActiveHrm?.macAddress
             val connectedToTarget = targetMac != null &&
                 liveConnectionState is BleConnectionState.Connected &&
                 liveConnectionState.macAddress == targetMac
+
+            if (isReconnecting) {
+                // Keep BleConnectionState.Reconnecting intact while GATT initialization reads battery.
+                liveBatteryLevel = if (connectedToTarget) level else null
+                republishCurrentStateLocked()
+                return
+            }
+
+            val previousState = currentConnectionState
+            updateConnectionStateLocked(liveConnectionState)
             if (!connectedToTarget || previousState != liveConnectionState) {
                 clearLiveTelemetryLocked()
             }
             liveBatteryLevel = if (connectedToTarget) level else null
             republishCurrentStateLocked()
         }
+    }
+
+    private fun isConnectionLostForSessionLocked(
+        newState: BleConnectionState,
+        sessionMacAddress: String
+    ): Boolean = newState is BleConnectionState.Disconnected ||
+        (newState is BleConnectionState.Connected && newState.macAddress != sessionMacAddress)
+
+    private fun startReconnectionLocked(session: ActiveSessionContext) {
+        val macAddress = session.activeHrm.macAddress
+        val sessionId = session.sessionId
+        val generation = ++reconnectionGeneration
+
+        isReconnecting = true
+        internalReconnectInProgress = false
+        reconnectionSessionId = sessionId
+        reconnectionMacAddress = macAddress
+
+        updateConnectionStateLocked(BleConnectionState.Reconnecting(macAddress, attempt = 1))
+        clearLiveTelemetryLocked()
+        liveBatteryLevel = null
+        publishActiveStateLocked(session)
+
+        gracePeriodJob?.cancel()
+        gracePeriodJob = repositoryScope.launch(start = CoroutineStart.DEFAULT) {
+            runGracePeriodTimer(
+                sessionId = sessionId,
+                generation = generation
+            )
+        }
+
+        reconnectionJob?.cancel()
+        reconnectionJob = repositoryScope.launch(start = CoroutineStart.DEFAULT) {
+            runReconnectionLoop(
+                sessionId = sessionId,
+                macAddress = macAddress,
+                generation = generation
+            )
+        }
+    }
+
+    private suspend fun runGracePeriodTimer(
+        sessionId: String,
+        generation: Long
+    ) {
+        delay(reconnectionPolicy.gracePeriodMs)
+
+        transitionMutex.withLock {
+            val sessionToPause = synchronized(stateLock) {
+                val current = activeSession
+                if (isReconnecting &&
+                    reconnectionGeneration == generation &&
+                    current != null &&
+                    current.sessionId == sessionId &&
+                    current.pauseReason == null
+                ) {
+                    current
+                } else {
+                    null
+                }
+            } ?: return@withLock
+
+            val paused = pauseSessionLocked(
+                session = sessionToPause,
+                reason = PauseReason.BLE_CONNECTION_LOST
+            )
+            if (paused) {
+                val displayName = synchronized(stateLock) {
+                    activeSession?.activeHrm?.displayName() ?: sessionToPause.activeHrm.displayName()
+                }
+                disconnectAlertNotifier.notifyBleConnectionLost(
+                    hrmDisplayName = displayName,
+                    sessionId = sessionId
+                )
+            }
+        }
+    }
+
+    private suspend fun runReconnectionLoop(
+        sessionId: String,
+        macAddress: String,
+        generation: Long
+    ) {
+        val currentJob = coroutineContext[Job]
+        var attempt = 1
+        try {
+            while (coroutineContext.isActive) {
+                val shouldContinue = synchronized(stateLock) {
+                    isStillReconnectingForLocked(sessionId, generation)
+                }
+                if (!shouldContinue) break
+
+                val backoffDelayMs = reconnectionPolicy.delayForAttemptMs(attempt)
+                val activeForAttempt = synchronized(stateLock) {
+                    if (!isStillReconnectingForLocked(sessionId, generation)) {
+                        false
+                    } else {
+                        updateConnectionStateLocked(
+                            BleConnectionState.Reconnecting(macAddress, attempt)
+                        )
+                        republishCurrentStateLocked()
+                        true
+                    }
+                }
+                if (!activeForAttempt) break
+
+                if (backoffDelayMs > 0L) {
+                    delay(backoffDelayMs)
+                }
+
+                val readyToConnect = synchronized(stateLock) {
+                    if (!isStillReconnectingForLocked(sessionId, generation)) {
+                        false
+                    } else {
+                        internalReconnectInProgress = true
+                        true
+                    }
+                }
+                if (!readyToConnect) break
+
+                val connectResult = bleTransport.connect(macAddress, autoConnect = false)
+                if (connectResult is BleOperationResult.Success) {
+                    val initResult = gattClient.initializeConnectedHrm(macAddress)
+                    if (initResult is BleOperationResult.Success) {
+                        val completed = completeInternalReconnection(
+                            sessionId = sessionId,
+                            macAddress = macAddress,
+                            generation = generation
+                        )
+                        if (completed) {
+                            break
+                        }
+                    } else {
+                        bleTransport.disconnect(macAddress)
+                        synchronized(stateLock) {
+                            if (reconnectionGeneration == generation) {
+                                internalReconnectInProgress = false
+                            }
+                        }
+                    }
+                } else {
+                    synchronized(stateLock) {
+                        if (reconnectionGeneration == generation) {
+                            internalReconnectInProgress = false
+                        }
+                    }
+                }
+
+                attempt += 1
+            }
+        } finally {
+            synchronized(stateLock) {
+                if (reconnectionGeneration == generation) {
+                    internalReconnectInProgress = false
+                    if (reconnectionJob === currentJob) {
+                        reconnectionJob = null
+                    }
+                }
+            }
+        }
+    }
+
+    private suspend fun completeInternalReconnection(
+        sessionId: String,
+        macAddress: String,
+        generation: Long
+    ): Boolean = transitionMutex.withLock {
+        var committed = false
+        val sessionToResume: ActiveSessionContext? = synchronized(stateLock) {
+            val current = activeSession
+            val liveState = bleTransport.connectionState.value
+            when {
+                !isStillReconnectingForLocked(sessionId, generation) || current == null -> null
+                liveState !is BleConnectionState.Connected || liveState.macAddress != macAddress -> {
+                    internalReconnectInProgress = false
+                    null
+                }
+                else -> {
+                    committed = true
+                    reconnectionGeneration += 1
+                    isReconnecting = false
+                    internalReconnectInProgress = false
+                    reconnectionSessionId = null
+                    reconnectionMacAddress = null
+                    gracePeriodJob?.cancel()
+                    gracePeriodJob = null
+                    reconnectionJob = null
+
+                    updateConnectionStateLocked(BleConnectionState.Connected(macAddress))
+
+                    if (current.pauseReason == PauseReason.BLE_CONNECTION_LOST) {
+                        current
+                    } else {
+                        publishActiveStateLocked(current)
+                        null
+                    }
+                }
+            }
+        }
+
+        if (!committed) return@withLock false
+        if (sessionToResume != null) {
+            resumeSessionLocked(sessionToResume)
+        }
+        true
+    }
+
+    private fun isStillReconnectingForLocked(sessionId: String, generation: Long): Boolean =
+        isReconnecting &&
+            reconnectionGeneration == generation &&
+            reconnectionSessionId == sessionId &&
+            activeSession?.sessionId == sessionId
+
+    private fun cancelGracePeriodLocked() {
+        gracePeriodJob?.cancel()
+        gracePeriodJob = null
+    }
+
+    private fun cancelReconnectionLocked(syncConnectionState: Boolean) {
+        reconnectionGeneration += 1
+        isReconnecting = false
+        internalReconnectInProgress = false
+        reconnectionSessionId = null
+        reconnectionMacAddress = null
+        gracePeriodJob?.cancel()
+        gracePeriodJob = null
+        reconnectionJob?.cancel()
+        reconnectionJob = null
+        if (syncConnectionState) {
+            updateConnectionStateLocked(bleTransport.connectionState.value)
+        }
+    }
+
+    private fun updateConnectionStateLocked(state: BleConnectionState) {
+        currentConnectionState = state
+        _connectionState.value = state
     }
 
     private fun clearLiveTelemetryLocked() {
@@ -730,7 +1075,8 @@ class SessionRepository(
                 batteryLevel = batteryLevel,
                 sampleCount = session.sampleCount,
                 zoneCalculation = session.zoneCalculation,
-                pendingMicroSessionDiscardPrompt = session.pendingMicroSessionDiscardPrompt
+                pendingMicroSessionDiscardPrompt = session.pendingMicroSessionDiscardPrompt,
+                connectionState = currentConnectionState
             )
         } else {
             SessionUiState.Paused(
@@ -747,7 +1093,8 @@ class SessionRepository(
                 batteryLevel = batteryLevel,
                 sampleCount = session.sampleCount,
                 zoneCalculation = session.zoneCalculation,
-                pendingMicroSessionDiscardPrompt = session.pendingMicroSessionDiscardPrompt
+                pendingMicroSessionDiscardPrompt = session.pendingMicroSessionDiscardPrompt,
+                connectionState = currentConnectionState
             )
         }
     }
@@ -781,7 +1128,9 @@ class SessionRepository(
             sampleDao: HeartRateSampleDao,
             scope: CoroutineScope,
             hrmGattClient: HrmGattClient? = null,
-            clock: SessionClock = AndroidSessionClock
+            clock: SessionClock = AndroidSessionClock,
+            reconnectionPolicy: BleReconnectionPolicy = BleReconnectionPolicy.Default,
+            disconnectAlertNotifier: BleDisconnectAlertNotifier = NoOpBleDisconnectAlertNotifier
         ): SessionRepository {
             return instance ?: synchronized(this) {
                 instance ?: SessionRepository(
@@ -792,7 +1141,9 @@ class SessionRepository(
                     sampleDao = sampleDao,
                     scope = scope,
                     hrmGattClient = hrmGattClient,
-                    clock = clock
+                    clock = clock,
+                    reconnectionPolicy = reconnectionPolicy,
+                    disconnectAlertNotifier = disconnectAlertNotifier
                 ).also { instance = it }
             }
         }

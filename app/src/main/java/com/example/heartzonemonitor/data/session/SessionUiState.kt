@@ -51,7 +51,8 @@ sealed interface SessionUiState {
         val batteryLevel: Int?,
         val sampleCount: Int,
         val zoneCalculation: ZoneCalculationResult,
-        val pendingMicroSessionDiscardPrompt: Boolean = false
+        val pendingMicroSessionDiscardPrompt: Boolean = false,
+        val connectionState: BleConnectionState = BleConnectionState.Connected(activeHrm.macAddress)
     ) : SessionUiState
 
     /**
@@ -72,7 +73,8 @@ sealed interface SessionUiState {
         val batteryLevel: Int?,
         val sampleCount: Int,
         val zoneCalculation: ZoneCalculationResult,
-        val pendingMicroSessionDiscardPrompt: Boolean = false
+        val pendingMicroSessionDiscardPrompt: Boolean = false,
+        val connectionState: BleConnectionState = BleConnectionState.Connected(activeHrm.macAddress)
     ) : SessionUiState
 
     /**
