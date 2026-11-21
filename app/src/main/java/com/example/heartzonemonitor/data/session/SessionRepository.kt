@@ -111,6 +111,13 @@ class SessionRepository(
     private val _connectionState = MutableStateFlow(currentConnectionState)
     val connectionState: StateFlow<BleConnectionState> = _connectionState.asStateFlow()
 
+    /**
+     * Exposes the single shared [HrmGattClient] used by this repository so callers such as
+     * auto-connect and BLE scanner flows share one serialized GATT command queue.
+     */
+    val hrmGattClient: HrmGattClient
+        get() = gattClient
+
     private val _uiState = MutableStateFlow<SessionUiState>(
         SessionUiState.Idle(connectionState = currentConnectionState)
     )

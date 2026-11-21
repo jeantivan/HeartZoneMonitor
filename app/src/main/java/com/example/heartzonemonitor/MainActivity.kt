@@ -15,10 +15,12 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
 import com.example.heartzonemonitor.core.security.EncryptedPassphraseStorage
 import com.example.heartzonemonitor.core.security.KeystoreManager
+import com.example.heartzonemonitor.data.ble.ActiveHrmAutoConnector
 import com.example.heartzonemonitor.data.ble.AndroidBlePermissionChecker
 import com.example.heartzonemonitor.data.ble.AndroidBleTransport
 import com.example.heartzonemonitor.data.ble.BleDeviceDiscoveryService
 import com.example.heartzonemonitor.data.ble.BlePermissionChecker
+import com.example.heartzonemonitor.data.ble.HrmGattClient
 import com.example.heartzonemonitor.data.local.AppDatabase
 import com.example.heartzonemonitor.data.session.AndroidBleDisconnectAlertNotifier
 import com.example.heartzonemonitor.data.session.SessionRepository
@@ -73,6 +75,18 @@ class MainActivity : ComponentActivity() {
         CoroutineScope(SupervisorJob() + Dispatchers.Default)
     }
 
+    private var hrmGattClientInstance: HrmGattClient? = null
+
+    private val hrmGattClient: HrmGattClient by lazy {
+        HrmGattClient(
+            bleTransport = bleTransport,
+            scope = appScope,
+            onBatteryLevelUpdated = { macAddress, level ->
+                database.rememberedHrmDao().updateBatteryLevel(macAddress, level)
+            }
+        ).also { hrmGattClientInstance = it }
+    }
+
     private val sessionRepository: SessionRepository by lazy {
         SessionRepository.getInstance(
             bleTransport = bleTransport,
@@ -81,8 +95,23 @@ class MainActivity : ComponentActivity() {
             sessionDao = database.sessionDao(),
             sampleDao = database.heartRateSampleDao(),
             scope = appScope,
+            hrmGattClient = hrmGattClient,
             disconnectAlertNotifier = AndroidBleDisconnectAlertNotifier(applicationContext)
         )
+    }
+
+    private var activeHrmAutoConnectorInstance: ActiveHrmAutoConnector? = null
+
+    private val activeHrmAutoConnector: ActiveHrmAutoConnector by lazy {
+        ActiveHrmAutoConnector(
+            bleTransport = bleTransport,
+            hrmGattClient = sessionRepository.hrmGattClient,
+            rememberedHrmDao = database.rememberedHrmDao(),
+            scope = lifecycleScope,
+            isSessionActiveProvider = { sessionRepository.isSessionActive },
+            sessionConnectionStateProvider = { sessionRepository.connectionState.value },
+            permissionChecker = blePermissionChecker
+        ).also { activeHrmAutoConnectorInstance = it }
     }
 
     private var recordingServiceCoordinatorInstance: RecordingServiceCoordinator? = null
@@ -142,7 +171,14 @@ class MainActivity : ComponentActivity() {
                         },
                         liveSessionViewModelFactory = {
                             recordingServiceCoordinator
-                            LiveSessionViewModel(sessionRepository)
+                            LiveSessionViewModel(
+                                sessionRepository = sessionRepository,
+                                autoConnector = activeHrmAutoConnector,
+                                discoveryService = bleDiscoveryService,
+                                rememberedHrmDao = rememberedHrmDao,
+                                permissionChecker = blePermissionChecker,
+                                hrmGattClient = sessionRepository.hrmGattClient
+                            )
                         },
                         openLiveSessionRequestId = openLiveSessionRequestId
                     )
@@ -170,9 +206,13 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        activeHrmAutoConnectorInstance?.close()
+        activeHrmAutoConnectorInstance = null
         recordingServiceCoordinatorInstance?.close()
         recordingServiceCoordinatorInstance = null
         if (!isChangingConfigurations && SessionRepository.getInstanceOrNull()?.isSessionActive != true) {
+            hrmGattClientInstance?.close()
+            hrmGattClientInstance = null
             bleTransportInstance?.close()
         }
         super.onDestroy()

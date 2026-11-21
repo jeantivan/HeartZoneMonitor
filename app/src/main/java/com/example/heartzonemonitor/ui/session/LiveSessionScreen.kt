@@ -19,6 +19,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -52,9 +53,21 @@ private const val LIVE_SESSION_DURATION_TICK_MS = 1_000L
 fun LiveSessionScreen(
     viewModel: LiveSessionViewModel,
     onManageDevices: () -> Unit = {},
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    shouldShowPermissionRationale: ((String) -> Boolean)? = null,
+    onOpenAppSettings: (() -> Unit)? = null
 ) {
     val uiState by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(viewModel) {
+        viewModel.onEnterLiveSession()
+    }
+
+    DisposableEffect(viewModel) {
+        onDispose {
+            viewModel.onLeaveLiveSession()
+        }
+    }
 
     LaunchedEffect(uiState.isRecording) {
         if (uiState.isRecording) {
@@ -64,6 +77,13 @@ fun LiveSessionScreen(
             }
         }
     }
+
+    val scannerActions = BleScannerSheetActions(
+        onDismiss = viewModel::dismissScannerSheet,
+        onRescan = viewModel::rescanInScannerSheet,
+        onSelectHrm = viewModel::connectFromScanner,
+        onDismissError = viewModel::dismissScannerError
+    )
 
     LiveSessionContent(
         uiState = uiState,
@@ -75,10 +95,23 @@ fun LiveSessionScreen(
             onManageDevices = onManageDevices,
             onConfirmSaveMicroSession = viewModel::confirmSaveMicroSession,
             onDiscardSession = viewModel::discardSession,
-            onDismissMicroSessionPrompt = viewModel::dismissMicroSessionPrompt
+            onDismissMicroSessionPrompt = viewModel::dismissMicroSessionPrompt,
+            onOpenScanner = viewModel::openScannerSheet,
+            scannerActions = scannerActions
         ),
         modifier = modifier
     )
+
+    if (uiState.scannerSheet.isOpen) {
+        BleScannerBottomSheet(
+            uiState = uiState.scannerSheet,
+            actions = scannerActions,
+            permissionChecker = viewModel.permissionChecker,
+            onPermissionsUpdated = viewModel::onScannerPermissionsUpdated,
+            shouldShowRationale = shouldShowPermissionRationale,
+            onOpenAppSettings = onOpenAppSettings
+        )
+    }
 }
 
 /**
@@ -104,6 +137,14 @@ fun LiveSessionContent(
             canStartSession = uiState.canStartSession,
             actions = actions
         )
+    },
+    statusBannerContent: @Composable () -> Unit = {
+        if (!uiState.isRecording && !uiState.isPaused) {
+            LiveSessionAutoConnectBanner(
+                autoConnectState = uiState.autoConnectState,
+                onOpenScanner = actions.onOpenScanner
+            )
+        }
     }
 ) {
     val targetColor = uiState.currentZone.toLiveSessionBackgroundColor()
@@ -149,6 +190,7 @@ fun LiveSessionContent(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
+            statusBannerContent()
             LiveSessionHeroTelemetry(
                 bpmText = bpmText,
                 zoneBadgeText = zoneBadgeText
