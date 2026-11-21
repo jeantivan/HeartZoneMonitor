@@ -30,6 +30,7 @@ import com.example.heartzonemonitor.ui.onboarding.OnboardingPairingUiState
 import com.example.heartzonemonitor.ui.onboarding.OnboardingPairingViewModel
 import com.example.heartzonemonitor.ui.onboarding.OnboardingProfileScreen
 import com.example.heartzonemonitor.ui.onboarding.OnboardingProfileViewModel
+import com.example.heartzonemonitor.ui.session.LiveSessionViewModel
 
 private val VoidBlack = Color(0xFF0B0F19)
 
@@ -41,7 +42,8 @@ fun RootNavHost(
     onExitApp: () -> Unit = {},
     onboardingViewModelFactory: () -> OnboardingProfileViewModel,
     onboardingPairingViewModelFactory: (() -> OnboardingPairingViewModel)? = null,
-    rememberedHrmsViewModelFactory: (() -> RememberedHrmsViewModel)? = null
+    rememberedHrmsViewModelFactory: (() -> RememberedHrmsViewModel)? = null,
+    liveSessionViewModelFactory: (() -> LiveSessionViewModel)? = null
 ) {
     val navState by rootViewModel.navState.collectAsState()
 
@@ -134,6 +136,7 @@ fun RootNavHost(
                                 initialTab = MainTab.LIVE_SESSION,
                                 activeHrm = activeHrm,
                                 onManageDevices = navigateToDevices,
+                                liveSessionViewModelFactory = liveSessionViewModelFactory,
                                 modifier = Modifier.fillMaxSize()
                             )
                         }
@@ -144,6 +147,7 @@ fun RootNavHost(
                                 initialTab = MainTab.SESSION_HISTORY,
                                 activeHrm = activeHrm,
                                 onManageDevices = navigateToDevices,
+                                liveSessionViewModelFactory = liveSessionViewModelFactory,
                                 modifier = Modifier.fillMaxSize()
                             )
                         }
@@ -154,6 +158,7 @@ fun RootNavHost(
                                 initialTab = MainTab.SETTINGS,
                                 activeHrm = activeHrm,
                                 onManageDevices = navigateToDevices,
+                                liveSessionViewModelFactory = liveSessionViewModelFactory,
                                 modifier = Modifier.fillMaxSize()
                             )
                         }

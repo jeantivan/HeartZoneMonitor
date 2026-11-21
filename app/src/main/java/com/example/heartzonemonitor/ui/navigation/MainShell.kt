@@ -20,8 +20,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -33,8 +35,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.heartzonemonitor.data.local.entity.RememberedHrmEntity
 import com.example.heartzonemonitor.data.local.entity.UserProfileEntity
-import com.example.heartzonemonitor.prototype.LiveSessionPrototypeScreen
+import com.example.heartzonemonitor.ui.session.LiveSessionActions
+import com.example.heartzonemonitor.ui.session.LiveSessionContent
 import com.example.heartzonemonitor.ui.session.LiveSessionNoHrmNotice
+import com.example.heartzonemonitor.ui.session.LiveSessionScreen
+import com.example.heartzonemonitor.ui.session.LiveSessionUiState
+import com.example.heartzonemonitor.ui.session.LiveSessionViewModel
 
 // Athletic Monolith Design Tokens
 private val VoidBlack = Color(0xFF0B0F19)
@@ -67,13 +73,19 @@ fun MainShell(
     modifier: Modifier = Modifier,
     initialTab: MainTab = MainTab.LIVE_SESSION,
     activeHrm: RememberedHrmEntity? = null,
-    onManageDevices: () -> Unit = {}
+    onManageDevices: () -> Unit = {},
+    liveSessionViewModelFactory: (() -> LiveSessionViewModel)? = null
 ) {
     var selectedTab by rememberSaveable { mutableStateOf(initialTab) }
+    val liveSessionViewModel = remember(liveSessionViewModelFactory != null) {
+        liveSessionViewModelFactory?.invoke()
+    }
+    val liveSessionState = liveSessionViewModel?.uiState?.collectAsState()?.value
 
     MainShellContent(
         uiState = MainShellUiState(
             selectedTab = selectedTab,
+            isImmersionMode = liveSessionState?.isImmersionMode ?: false,
             activeHrm = activeHrm
         ),
         actions = MainShellActions(
@@ -81,7 +93,8 @@ fun MainShell(
             onManageDevices = onManageDevices
         ),
         userProfile = userProfile,
-        modifier = modifier
+        modifier = modifier,
+        liveSessionViewModel = liveSessionViewModel
     )
 }
 
@@ -90,7 +103,8 @@ fun MainShellContent(
     uiState: MainShellUiState,
     actions: MainShellActions,
     userProfile: UserProfileEntity?,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    liveSessionViewModel: LiveSessionViewModel? = null
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -115,8 +129,16 @@ fun MainShellContent(
                         LiveSessionNoHrmNotice(
                             onPairHrmInSettings = actions.onManageDevices
                         )
+                    } else if (liveSessionViewModel != null) {
+                        LiveSessionScreen(
+                            viewModel = liveSessionViewModel,
+                            onManageDevices = actions.onManageDevices
+                        )
                     } else {
-                        LiveSessionPrototypeScreen()
+                        LiveSessionContent(
+                            uiState = LiveSessionUiState(activeHrm = uiState.activeHrm),
+                            actions = LiveSessionActions(onManageDevices = actions.onManageDevices)
+                        )
                     }
                 }
                 MainTab.SESSION_HISTORY -> {
