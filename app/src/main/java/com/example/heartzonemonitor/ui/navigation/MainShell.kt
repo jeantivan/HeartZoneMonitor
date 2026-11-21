@@ -20,8 +20,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -74,9 +76,17 @@ fun MainShell(
     initialTab: MainTab = MainTab.LIVE_SESSION,
     activeHrm: RememberedHrmEntity? = null,
     onManageDevices: () -> Unit = {},
-    liveSessionViewModelFactory: (() -> LiveSessionViewModel)? = null
+    liveSessionViewModelFactory: (() -> LiveSessionViewModel)? = null,
+    openLiveSessionRequestId: Int = 0
 ) {
     var selectedTab by rememberSaveable { mutableStateOf(initialTab) }
+    var lastHandledOpenLiveSessionRequestId by rememberSaveable { mutableIntStateOf(0) }
+    LaunchedEffect(openLiveSessionRequestId) {
+        if (openLiveSessionRequestId > lastHandledOpenLiveSessionRequestId) {
+            lastHandledOpenLiveSessionRequestId = openLiveSessionRequestId
+            selectedTab = MainTab.LIVE_SESSION
+        }
+    }
     val liveSessionViewModel = remember(liveSessionViewModelFactory != null) {
         liveSessionViewModelFactory?.invoke()
     }

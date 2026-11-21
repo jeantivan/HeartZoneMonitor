@@ -1,11 +1,16 @@
 package com.example.heartzonemonitor
 
+import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
 import com.example.heartzonemonitor.core.security.EncryptedPassphraseStorage
@@ -90,9 +95,17 @@ class MainActivity : ComponentActivity() {
         ).also { recordingServiceCoordinatorInstance = it }
     }
 
+    internal var openLiveSessionRequestId by mutableIntStateOf(0)
+        private set
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        openLiveSessionRequestId =
+            savedInstanceState?.getInt(STATE_OPEN_LIVE_SESSION_REQUEST_ID, 0) ?: 0
+        if (savedInstanceState == null) {
+            handleDeepLinkIntent(intent)
+        }
 
         val userProfileDao = database.userProfileDao()
         val rememberedHrmDao = database.rememberedHrmDao()
@@ -130,10 +143,29 @@ class MainActivity : ComponentActivity() {
                         liveSessionViewModelFactory = {
                             recordingServiceCoordinator
                             LiveSessionViewModel(sessionRepository)
-                        }
+                        },
+                        openLiveSessionRequestId = openLiveSessionRequestId
                     )
                 }
             }
+        }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putInt(STATE_OPEN_LIVE_SESSION_REQUEST_ID, openLiveSessionRequestId)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleDeepLinkIntent(intent)
+    }
+
+    private fun handleDeepLinkIntent(intent: Intent?) {
+        if (intent?.getBooleanExtra(EXTRA_OPEN_LIVE_SESSION, false) == true) {
+            openLiveSessionRequestId += 1
+            intent.removeExtra(EXTRA_OPEN_LIVE_SESSION)
         }
     }
 
@@ -144,5 +176,18 @@ class MainActivity : ComponentActivity() {
             bleTransportInstance?.close()
         }
         super.onDestroy()
+    }
+
+    companion object {
+        const val EXTRA_OPEN_LIVE_SESSION =
+            "com.example.heartzonemonitor.extra.OPEN_LIVE_SESSION"
+        private const val STATE_OPEN_LIVE_SESSION_REQUEST_ID =
+            "com.example.heartzonemonitor.state.OPEN_LIVE_SESSION_REQUEST_ID"
+
+        fun createLiveSessionIntent(context: Context): Intent =
+            Intent(context, MainActivity::class.java).apply {
+                putExtra(EXTRA_OPEN_LIVE_SESSION, true)
+                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
     }
 }

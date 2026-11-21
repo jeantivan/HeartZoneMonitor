@@ -2,8 +2,12 @@ package com.example.heartzonemonitor.ui.navigation
 
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -302,5 +306,174 @@ class RootNavHostTest {
         composeTestRule.waitForIdle()
         composeTestRule.activity.onBackPressedDispatcher.onBackPressed()
         assertTrue(appExited)
+    }
+
+    @Test
+    fun `openLiveSessionRequestId deep-link pops Devices screen and returns to Live Session tab`() {
+        val testProfile = UserProfileEntity(
+            id = UserProfileEntity.SINGLETON_ID,
+            birthYear = 1990,
+            restingHr = 60,
+            customHrmax = null,
+            calculationMode = ZoneCalculationMode.KARVONEN,
+            updatedAtEpochMs = 1000L
+        )
+        fakeDao.emitProfile(testProfile)
+        runBlocking {
+            fakeHrmDao.upsertHrm(
+                RememberedHrmEntity(
+                    macAddress = "D4:36:39:88:21:9B",
+                    advertisedName = "COOSPO H808S",
+                    customNickname = "Chest Strap",
+                    lastSeenTimestamp = 2000L,
+                    batteryLevel = 92,
+                    isActive = true
+                )
+            )
+        }
+
+        val rootViewModel = RootViewModel(userProfileDao = fakeDao, rememberedHrmDao = fakeHrmDao)
+        val onboardingViewModel = OnboardingProfileViewModel(userProfileDao = fakeDao)
+        var openLiveSessionRequestId by mutableIntStateOf(0)
+
+        composeTestRule.activity.setContent {
+            RootNavHost(
+                rootViewModel = rootViewModel,
+                onboardingViewModelFactory = { onboardingViewModel },
+                rememberedHrmsViewModelFactory = { RememberedHrmsViewModel(fakeHrmDao) },
+                openLiveSessionRequestId = openLiveSessionRequestId
+            )
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("SETTINGS").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Manage Heart Rate Monitors").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Heart Rate Monitors").assertIsDisplayed()
+
+        composeTestRule.runOnIdle {
+            openLiveSessionRequestId += 1
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Heart Rate Monitors").assertDoesNotExist()
+        composeTestRule.onNodeWithText("SETTINGS & PROFILE").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("live_session_bpm_text").assertIsDisplayed()
+    }
+
+    @Test
+    fun `openLiveSessionRequestId deep-link does not bypass Onboarding gate when profile is null`() {
+        val rootViewModel = RootViewModel(userProfileDao = fakeDao, rememberedHrmDao = fakeHrmDao)
+        val onboardingViewModel = OnboardingProfileViewModel(userProfileDao = fakeDao)
+
+        composeTestRule.activity.setContent {
+            RootNavHost(
+                rootViewModel = rootViewModel,
+                onboardingViewModelFactory = { onboardingViewModel },
+                openLiveSessionRequestId = 1
+            )
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Calibrate Your Heart Zones").assertIsDisplayed()
+    }
+
+    @Test
+    fun `already handled openLiveSessionRequestId does not re-pop Devices on recreation while a new increment does`() {
+        val testProfile = UserProfileEntity(
+            id = UserProfileEntity.SINGLETON_ID,
+            birthYear = 1990,
+            restingHr = 60,
+            customHrmax = null,
+            calculationMode = ZoneCalculationMode.KARVONEN,
+            updatedAtEpochMs = 1000L
+        )
+        fakeDao.emitProfile(testProfile)
+        runBlocking {
+            fakeHrmDao.upsertHrm(
+                RememberedHrmEntity(
+                    macAddress = "D4:36:39:88:21:9B",
+                    advertisedName = "COOSPO H808S",
+                    customNickname = "Chest Strap",
+                    lastSeenTimestamp = 2000L,
+                    batteryLevel = 92,
+                    isActive = true
+                )
+            )
+        }
+
+        val rootViewModel = RootViewModel(userProfileDao = fakeDao, rememberedHrmDao = fakeHrmDao)
+        val onboardingViewModel = OnboardingProfileViewModel(userProfileDao = fakeDao)
+        var openLiveSessionRequestId by mutableIntStateOf(0)
+        val restorationTester = StateRestorationTester(composeTestRule)
+
+        restorationTester.setContent {
+            RootNavHost(
+                rootViewModel = rootViewModel,
+                onboardingViewModelFactory = { onboardingViewModel },
+                rememberedHrmsViewModelFactory = { RememberedHrmsViewModel(fakeHrmDao) },
+                openLiveSessionRequestId = openLiveSessionRequestId
+            )
+        }
+
+        // First deep-link request pops Devices back to Live Session.
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("SETTINGS").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Manage Heart Rate Monitors").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Heart Rate Monitors").assertIsDisplayed()
+
+        composeTestRule.runOnIdle {
+            openLiveSessionRequestId += 1
+        }
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Heart Rate Monitors").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("live_session_bpm_text").assertIsDisplayed()
+
+        // Navigate back to Devices, then simulate Activity recreation with same requestId = 1.
+        composeTestRule.onNodeWithText("SETTINGS").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Manage Heart Rate Monitors").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Heart Rate Monitors").assertIsDisplayed()
+
+        restorationTester.emulateSavedInstanceStateRestore()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Heart Rate Monitors").assertIsDisplayed()
+
+        // A new deep-link increment (requestId = 2) pops Devices back to Live Session.
+        composeTestRule.runOnIdle {
+            openLiveSessionRequestId += 1
+        }
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Heart Rate Monitors").assertDoesNotExist()
+        composeTestRule.onNodeWithText("SETTINGS & PROFILE").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("live_session_bpm_text").assertIsDisplayed()
+    }
+
+    @Test
+    fun `stale openLiveSessionRequestId during onboarding does not hijack pairing after profile save`() {
+        val rootViewModel = RootViewModel(userProfileDao = fakeDao, rememberedHrmDao = fakeHrmDao)
+        val onboardingViewModel = OnboardingProfileViewModel(userProfileDao = fakeDao)
+
+        composeTestRule.activity.setContent {
+            RootNavHost(
+                rootViewModel = rootViewModel,
+                onboardingViewModelFactory = { onboardingViewModel },
+                openLiveSessionRequestId = 1
+            )
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Calibrate Your Heart Zones").assertIsDisplayed()
+
+        composeTestRule.onNodeWithText("1988").performTextInput("1990")
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Continue to Sensor Pairing").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Pair Heart Rate Monitor").assertIsDisplayed()
     }
 }

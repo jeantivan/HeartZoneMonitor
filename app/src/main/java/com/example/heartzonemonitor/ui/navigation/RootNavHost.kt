@@ -5,9 +5,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
@@ -43,9 +47,11 @@ fun RootNavHost(
     onboardingViewModelFactory: () -> OnboardingProfileViewModel,
     onboardingPairingViewModelFactory: (() -> OnboardingPairingViewModel)? = null,
     rememberedHrmsViewModelFactory: (() -> RememberedHrmsViewModel)? = null,
-    liveSessionViewModelFactory: (() -> LiveSessionViewModel)? = null
+    liveSessionViewModelFactory: (() -> LiveSessionViewModel)? = null,
+    openLiveSessionRequestId: Int = 0
 ) {
     val navState by rootViewModel.navState.collectAsState()
+    var lastHandledOpenLiveSessionRequestId by rememberSaveable { mutableIntStateOf(0) }
 
     when (val state = navState) {
         RootNavState.Loading -> {
@@ -58,6 +64,24 @@ fun RootNavHost(
         RootNavState.Onboarding, is RootNavState.Ready -> {
             val hasProfile = state is RootNavState.Ready
             val retainedOnboardingViewModel = remember { onboardingViewModelFactory() }
+
+            LaunchedEffect(openLiveSessionRequestId) {
+                if (openLiveSessionRequestId > lastHandledOpenLiveSessionRequestId) {
+                    lastHandledOpenLiveSessionRequestId = openLiveSessionRequestId
+                    if (hasProfile &&
+                        navController.currentDestination?.route != NavDestinations.LIVE_SESSION
+                    ) {
+                        if (!navController.popBackStack(NavDestinations.LIVE_SESSION, inclusive = false)) {
+                            navController.navigate(NavDestinations.LIVE_SESSION) {
+                                popUpTo(NavDestinations.MAIN_GRAPH) {
+                                    inclusive = false
+                                }
+                                launchSingleTop = true
+                            }
+                        }
+                    }
+                }
+            }
 
             BackHandler(enabled = !hasProfile) {
                 onExitApp()
@@ -137,6 +161,7 @@ fun RootNavHost(
                                 activeHrm = activeHrm,
                                 onManageDevices = navigateToDevices,
                                 liveSessionViewModelFactory = liveSessionViewModelFactory,
+                                openLiveSessionRequestId = openLiveSessionRequestId,
                                 modifier = Modifier.fillMaxSize()
                             )
                         }
@@ -148,6 +173,7 @@ fun RootNavHost(
                                 activeHrm = activeHrm,
                                 onManageDevices = navigateToDevices,
                                 liveSessionViewModelFactory = liveSessionViewModelFactory,
+                                openLiveSessionRequestId = openLiveSessionRequestId,
                                 modifier = Modifier.fillMaxSize()
                             )
                         }
@@ -159,6 +185,7 @@ fun RootNavHost(
                                 activeHrm = activeHrm,
                                 onManageDevices = navigateToDevices,
                                 liveSessionViewModelFactory = liveSessionViewModelFactory,
+                                openLiveSessionRequestId = openLiveSessionRequestId,
                                 modifier = Modifier.fillMaxSize()
                             )
                         }

@@ -156,11 +156,16 @@ class RecordingServiceTest {
                 runCurrent()
 
                 RecordingService.sessionRepositoryProvider = { harness.repository }
+                RecordingService.sessionClockProvider = { harness.clock }
                 val intent = RecordingService.createStartIntent(context)
                 val controller = Robolectric.buildService(RecordingService::class.java, intent).create()
                 val service = controller.get()
                 service.onStartCommand(intent, 0, 1)
                 drainMainLooper()
+
+                val notificationManager =
+                    context.getSystemService(NotificationManager::class.java)
+                val shadowNotificationManager = Shadows.shadowOf(notificationManager)
 
                 val wakeLock = ShadowPowerManager.getLatestWakeLock()
                 assertNotNull(wakeLock)
@@ -176,19 +181,27 @@ class RecordingServiceTest {
                 val shadowService = Shadows.shadowOf(service)
                 assertFalse(shadowService.isStoppedBySelf)
                 assertFalse(shadowService.isForegroundStopped)
+                val pausedNotification =
+                    shadowNotificationManager.getNotification(RecordingService.NOTIFICATION_ID)
+                assertNotNull(pausedNotification)
                 assertEquals(
-                    "Session Paused",
-                    shadowService.lastForegroundNotification.extras.getString(Notification.EXTRA_TITLE)
+                    "Paused • 140 BPM • Zone 3 (Tempo)",
+                    pausedNotification.extras.getString(Notification.EXTRA_TITLE)
                 )
+                assertFalse(pausedNotification.extras.getBoolean(Notification.EXTRA_SHOW_CHRONOMETER))
 
                 // Resume back to Recording re-acquires wake lock.
                 assertTrue(harness.repository.resumeSession())
                 drainTestAndMainLooper()
                 assertTrue(wakeLock.isHeld)
+                val resumedNotification =
+                    shadowNotificationManager.getNotification(RecordingService.NOTIFICATION_ID)
+                assertNotNull(resumedNotification)
                 assertEquals(
-                    "Session Recording",
-                    shadowService.lastForegroundNotification.extras.getString(Notification.EXTRA_TITLE)
+                    "140 BPM • Zone 3 (Tempo)",
+                    resumedNotification.extras.getString(Notification.EXTRA_TITLE)
                 )
+                assertTrue(resumedNotification.extras.getBoolean(Notification.EXTRA_SHOW_CHRONOMETER))
 
                 // Auto-pause (BLE_CONNECTION_LOST) immediately releases wake lock.
                 assertTrue(harness.repository.pauseSession(PauseReason.BLE_CONNECTION_LOST))
@@ -225,11 +238,8 @@ class RecordingServiceTest {
                 assertTrue(shadowService.isForegroundStopped)
                 assertNull(shadowService.lastForegroundNotification)
                 assertTrue(shadowService.isStoppedBySelf)
-                val notificationManager =
-                    context.getSystemService(NotificationManager::class.java)
                 assertNull(
-                    Shadows.shadowOf(notificationManager)
-                        .getNotification(RecordingService.NOTIFICATION_ID)
+                    shadowNotificationManager.getNotification(RecordingService.NOTIFICATION_ID)
                 )
 
                 controller.destroy()

@@ -1,7 +1,6 @@
 package com.example.heartzonemonitor.service
 
 import android.app.Notification
-import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
@@ -9,21 +8,23 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.IBinder
 import android.os.PowerManager
-import androidx.core.app.NotificationCompat
-import com.example.heartzonemonitor.R
+import com.example.heartzonemonitor.data.session.PauseReason
 import com.example.heartzonemonitor.data.session.SessionRepository
 import com.example.heartzonemonitor.data.session.SessionUiState
+import com.example.heartzonemonitor.data.timing.AndroidSessionClock
+import com.example.heartzonemonitor.domain.timing.SessionClock
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
-import kotlin.reflect.KClass
 
 /**
- * Foreground Service (`connectedDevice`) anchoring an active Session in memory and holding a
- * `PowerManager.PARTIAL_WAKE_LOCK` exclusively while in [SessionUiState.Recording].
+ * Foreground Service (`connectedDevice`) anchoring an active Session in memory, holding a
+ * `PowerManager.PARTIAL_WAKE_LOCK` exclusively while in [SessionUiState.Recording], rendering the
+ * debounced chronometer notification, and dispatching interactive notification actions directly to
+ * [SessionRepository].
  */
 class RecordingService : Service() {
 
@@ -34,13 +35,28 @@ class RecordingService : Service() {
     private var wakeLock: PowerManager.WakeLock? = null
     private var hasObservedActiveSession: Boolean = false
     private var isForegroundActive: Boolean = false
-    private var lastForegroundStateClass: KClass<out SessionUiState>? = null
+    private var notificationDebouncer: RecordingNotificationDebouncer? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         ensureNotificationChannel(this)
         val repository = sessionRepositoryProvider()
+        val action = intent?.action
+
+        if (isForegroundActive && observerJob?.isActive == true) {
+            val currentState = repository?.uiState?.value
+            if (repository == null ||
+                currentState is SessionUiState.Completed ||
+                currentState is SessionUiState.Discarded
+            ) {
+                stopRecordingService()
+                return START_NOT_STICKY
+            }
+            dispatchActionIfNeeded(repository, action)
+            return START_NOT_STICKY
+        }
+
         val initialState = repository?.uiState?.value ?: SessionUiState.Idle()
         enterForeground(initialState)
 
@@ -59,6 +75,7 @@ class RecordingService : Service() {
                 handleUiState(state)
             }
         }
+        dispatchActionIfNeeded(repository, action)
         return START_NOT_STICKY
     }
 
@@ -68,8 +85,9 @@ class RecordingService : Service() {
         serviceJob.cancel()
         releaseWakeLock()
         wakeLock = null
+        notificationDebouncer?.reset()
+        notificationDebouncer = null
         isForegroundActive = false
-        lastForegroundStateClass = null
         hasObservedActiveSession = false
         super.onDestroy()
     }
@@ -78,17 +96,13 @@ class RecordingService : Service() {
         when (state) {
             is SessionUiState.Recording -> {
                 hasObservedActiveSession = true
-                if (!isForegroundActive || lastForegroundStateClass != SessionUiState.Recording::class) {
-                    enterForeground(state)
-                }
+                updateForegroundOrNotify(state)
                 acquireWakeLock()
             }
 
             is SessionUiState.Paused -> {
                 hasObservedActiveSession = true
-                if (!isForegroundActive || lastForegroundStateClass != SessionUiState.Paused::class) {
-                    enterForeground(state)
-                }
+                updateForegroundOrNotify(state)
                 releaseWakeLock()
             }
 
@@ -106,6 +120,28 @@ class RecordingService : Service() {
         }
     }
 
+    private fun dispatchActionIfNeeded(repository: SessionRepository, action: String?) {
+        when (action) {
+            ACTION_PAUSE_SESSION -> {
+                serviceScope.launch(start = CoroutineStart.UNDISPATCHED) {
+                    repository.pauseSession(PauseReason.USER_MANUAL)
+                }
+            }
+
+            ACTION_RESUME_SESSION -> {
+                serviceScope.launch(start = CoroutineStart.UNDISPATCHED) {
+                    repository.resumeSession()
+                }
+            }
+
+            ACTION_STOP_SESSION -> {
+                serviceScope.launch(start = CoroutineStart.UNDISPATCHED) {
+                    repository.stopSession()
+                }
+            }
+        }
+    }
+
     private fun enterForeground(state: SessionUiState) {
         val notification = notificationBuilderProvider(this, state)
         startForeground(
@@ -114,8 +150,23 @@ class RecordingService : Service() {
             ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
         )
         isForegroundActive = true
-        lastForegroundStateClass = state::class
+        getOrCreateDebouncer().recordEmitted(state)
     }
+
+    private fun updateForegroundOrNotify(state: SessionUiState) {
+        if (!isForegroundActive) {
+            enterForeground(state)
+            return
+        }
+        if (getOrCreateDebouncer().consumeIfShouldEmit(state)) {
+            val notification = notificationBuilderProvider(this, state)
+            notificationPoster(this, NOTIFICATION_ID, notification)
+        }
+    }
+
+    private fun getOrCreateDebouncer(): RecordingNotificationDebouncer =
+        notificationDebouncer ?: RecordingNotificationDebouncer(sessionClockProvider())
+            .also { notificationDebouncer = it }
 
     private fun acquireWakeLock() {
         val lock = wakeLock ?: getSystemService(PowerManager::class.java)
@@ -139,11 +190,13 @@ class RecordingService : Service() {
         releaseWakeLock()
         observerJob?.cancel()
         observerJob = null
+        notificationDebouncer?.reset()
+        notificationDebouncer = null
         hasObservedActiveSession = false
         if (isForegroundActive) {
             stopForeground(STOP_FOREGROUND_REMOVE)
+            getSystemService(NotificationManager::class.java)?.cancel(NOTIFICATION_ID)
             isForegroundActive = false
-            lastForegroundStateClass = null
         }
         stopSelf()
     }
@@ -154,10 +207,9 @@ class RecordingService : Service() {
         const val WAKE_LOCK_TAG = "HeartZoneMonitor::RecordingWakeLock"
         const val MAX_WAKE_LOCK_TIMEOUT_MS = 12L * 60L * 60L * 1000L
         const val ACTION_START_RECORDING = "com.example.heartzonemonitor.action.START_RECORDING"
-
-        private const val DEFAULT_CHANNEL_NAME = "Session Recording"
-        private const val DEFAULT_CHANNEL_DESCRIPTION =
-            "Ongoing Heart Rate Monitor session status"
+        const val ACTION_PAUSE_SESSION = "com.example.heartzonemonitor.action.PAUSE_SESSION"
+        const val ACTION_RESUME_SESSION = "com.example.heartzonemonitor.action.RESUME_SESSION"
+        const val ACTION_STOP_SESSION = "com.example.heartzonemonitor.action.STOP_SESSION"
 
         @Volatile
         internal var sessionRepositoryProvider: () -> SessionRepository? = {
@@ -165,60 +217,65 @@ class RecordingService : Service() {
         }
 
         @Volatile
+        internal var sessionClockProvider: () -> SessionClock = { AndroidSessionClock }
+
+        @Volatile
         internal var notificationBuilderProvider: (Context, SessionUiState) -> Notification =
             ::buildDefaultNotification
+
+        @Volatile
+        internal var notificationPoster: (Context, Int, Notification) -> Unit =
+            ::postNotificationToManager
 
         fun createStartIntent(context: Context): Intent =
             Intent(context, RecordingService::class.java).apply {
                 action = ACTION_START_RECORDING
             }
 
+        fun createPauseIntent(context: Context): Intent =
+            Intent(context, RecordingService::class.java).apply {
+                action = ACTION_PAUSE_SESSION
+            }
+
+        fun createResumeIntent(context: Context): Intent =
+            Intent(context, RecordingService::class.java).apply {
+                action = ACTION_RESUME_SESSION
+            }
+
+        fun createStopIntent(context: Context): Intent =
+            Intent(context, RecordingService::class.java).apply {
+                action = ACTION_STOP_SESSION
+            }
+
         internal fun resetTestHooks() {
             sessionRepositoryProvider = { SessionRepository.getInstanceOrNull() }
+            sessionClockProvider = { AndroidSessionClock }
             notificationBuilderProvider = ::buildDefaultNotification
+            notificationPoster = ::postNotificationToManager
         }
 
         internal fun ensureNotificationChannel(context: Context) {
-            val notificationManager =
-                context.getSystemService(NotificationManager::class.java) ?: return
-            if (notificationManager.getNotificationChannel(NOTIFICATION_CHANNEL_ID) == null) {
-                val channel = NotificationChannel(
-                    NOTIFICATION_CHANNEL_ID,
-                    DEFAULT_CHANNEL_NAME,
-                    NotificationManager.IMPORTANCE_LOW
-                ).apply {
-                    description = DEFAULT_CHANNEL_DESCRIPTION
-                    setShowBadge(false)
-                }
-                notificationManager.createNotificationChannel(channel)
-            }
+            RecordingNotificationFactory.ensureNotificationChannel(context)
         }
 
         internal fun buildDefaultNotification(
             context: Context,
             state: SessionUiState
-        ): Notification {
-            ensureNotificationChannel(context)
-            val (title, contentText) = when (state) {
-                is SessionUiState.Recording ->
-                    "Session Recording" to "Heart Rate Monitor session active"
-                is SessionUiState.Paused ->
-                    "Session Paused" to "Heart Rate Monitor session paused"
-                is SessionUiState.Idle,
-                is SessionUiState.Completed,
-                is SessionUiState.Discarded ->
-                    "Session Recording" to "Preparing Heart Rate Monitor session"
+        ): Notification =
+            RecordingNotificationFactory(sessionClockProvider()).build(context, state)
+
+        private fun postNotificationToManager(
+            context: Context,
+            notificationId: Int,
+            notification: Notification
+        ) {
+            val notificationManager =
+                context.getSystemService(NotificationManager::class.java) ?: return
+            try {
+                notificationManager.notify(notificationId, notification)
+            } catch (_: SecurityException) {
+                // Foreground notification visibility is OS-managed; fail safely if permission revoked.
             }
-            return NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_ID)
-                .setSmallIcon(R.mipmap.ic_launcher)
-                .setContentTitle(title)
-                .setContentText(contentText)
-                .setOngoing(true)
-                .setOnlyAlertOnce(true)
-                .setCategory(NotificationCompat.CATEGORY_SERVICE)
-                .setPriority(NotificationCompat.PRIORITY_LOW)
-                .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
-                .build()
         }
     }
 }

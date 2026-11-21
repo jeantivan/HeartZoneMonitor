@@ -2,6 +2,9 @@ package com.example.heartzonemonitor.ui.navigation
 
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -138,5 +141,41 @@ class MainShellTest {
         composeTestRule.onNodeWithText("No Heart Rate Monitor paired").assertDoesNotExist()
         composeTestRule.onNodeWithTag("start_session_button").assertDoesNotExist()
         composeTestRule.onNodeWithText("LIVE").assertIsDisplayed()
+    }
+
+    @Test
+    fun `incrementing openLiveSessionRequestId switches from Settings or History back to Live Session`() {
+        var openLiveSessionRequestId by mutableIntStateOf(0)
+
+        composeTestRule.activity.setContent {
+            MainShell(
+                userProfile = testProfile,
+                activeHrm = activeHrm,
+                openLiveSessionRequestId = openLiveSessionRequestId
+            )
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("SETTINGS").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("SETTINGS & PROFILE").assertIsDisplayed()
+
+        composeTestRule.runOnIdle {
+            openLiveSessionRequestId += 1
+        }
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("SETTINGS & PROFILE").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("live_session_bpm_text").assertIsDisplayed()
+
+        composeTestRule.onNodeWithText("HISTORY").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("SESSION HISTORY").assertIsDisplayed()
+
+        composeTestRule.runOnIdle {
+            openLiveSessionRequestId += 1
+        }
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("SESSION HISTORY").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("live_session_bpm_text").assertIsDisplayed()
     }
 }
