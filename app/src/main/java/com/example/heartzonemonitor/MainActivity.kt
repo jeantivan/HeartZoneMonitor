@@ -164,6 +164,7 @@ class MainActivity : ComponentActivity() {
                             RememberedHrmsViewModel(
                                 rememberedHrmDao = rememberedHrmDao,
                                 isSessionActiveFlow = sessionRepository.isSessionActiveFlow,
+                                isSessionActiveProvider = { sessionRepository.isSessionActive },
                                 onDisconnectActiveHrm = { macAddress ->
                                     bleTransport.disconnect(macAddress)
                                 }

@@ -48,6 +48,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.heartzonemonitor.data.local.entity.RememberedHrmEntity
 
+const val REMEMBERED_HRMS_LOCKOUT_NOTICE_TAG = "session_lockout_notice"
+const val SCAN_FOR_NEW_HRM_BUTTON_TAG = "scan_for_new_hrm_button"
+
 // Athletic Monolith Design Tokens
 private val VoidBlack = Color(0xFF0B0F19)
 private val DarkSlate = Color(0xFF1E293B)
@@ -123,7 +126,9 @@ fun RememberedHrmsContent(
                 .padding(horizontal = 20.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            if (uiState.errorMessage != null) {
+            if (uiState.errorMessage != null &&
+                !(uiState.isSessionActive && uiState.errorMessage == ACTIVE_SESSION_SWITCH_LOCKOUT_NOTICE)
+            ) {
                 ErrorBanner(message = uiState.errorMessage)
             }
 
@@ -132,6 +137,10 @@ fun RememberedHrmsContent(
                     hasRemainingHrms = uiState.inactiveHrms.isNotEmpty(),
                     onDismiss = actions.onDismissActiveDeletedPrompt
                 )
+            }
+
+            if (uiState.isSessionActive) {
+                SessionLockoutNotice()
             }
 
             if (uiState.activeHrm != null) {
@@ -160,11 +169,10 @@ fun RememberedHrmsContent(
                 EmptyRememberedHrmsCard()
             }
 
-            ScanForNewHrmButton(onClick = actions.onScanForNewHrm)
-
-            if (uiState.isSessionActive) {
-                SessionLockoutNotice()
-            }
+            ScanForNewHrmButton(
+                enabled = !uiState.isSessionActive,
+                onClick = actions.onScanForNewHrm
+            )
         }
     }
 
@@ -442,6 +450,7 @@ private fun ActiveHrmHeroCard(
                     colors = ButtonDefaults.outlinedButtonColors(
                         containerColor = VoidBlack,
                         contentColor = ErrorRed,
+                        disabledContainerColor = VoidBlack.copy(alpha = 0.5f),
                         disabledContentColor = TextDisabled
                     )
                 ) {
@@ -689,17 +698,25 @@ private fun EmptyRememberedHrmsCard() {
 }
 
 @Composable
-private fun ScanForNewHrmButton(onClick: () -> Unit) {
+private fun ScanForNewHrmButton(
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
     Button(
         onClick = onClick,
+        enabled = enabled,
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 56.dp),
+            .heightIn(min = 56.dp)
+            .testTag(SCAN_FOR_NEW_HRM_BUTTON_TAG),
         shape = RoundedCornerShape(12.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = AthleticLime,
-            contentColor = VoidBlack
-        )
+            contentColor = VoidBlack,
+            disabledContainerColor = DarkSlate,
+            disabledContentColor = TextDisabled
+        ),
+        border = if (enabled) null else BorderStroke(1.dp, BorderSlate)
     ) {
         Text(
             text = "Scan for New HRM",
@@ -715,15 +732,16 @@ private fun SessionLockoutNotice() {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(VoidBlack, RoundedCornerShape(12.dp))
-            .border(1.dp, WarningAmber, RoundedCornerShape(12.dp))
-            .padding(14.dp),
+            .background(DarkSlate, RoundedCornerShape(12.dp))
+            .border(1.5.dp, WarningAmber, RoundedCornerShape(12.dp))
+            .padding(14.dp)
+            .testTag(REMEMBERED_HRMS_LOCKOUT_NOTICE_TAG),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
-                .background(DarkSlate, RoundedCornerShape(4.dp))
+                .background(VoidBlack, RoundedCornerShape(4.dp))
                 .border(1.dp, WarningAmber, RoundedCornerShape(4.dp))
                 .padding(horizontal = 6.dp, vertical = 4.dp)
         ) {
@@ -736,8 +754,8 @@ private fun SessionLockoutNotice() {
             )
         }
         Text(
-            text = "Active HRM switching is locked out during an active Session to maintain telemetry data integrity.",
-            color = TextSecondary,
+            text = ACTIVE_SESSION_SWITCH_LOCKOUT_NOTICE,
+            color = TextPrimary,
             fontSize = 13.sp,
             lineHeight = 18.sp
         )

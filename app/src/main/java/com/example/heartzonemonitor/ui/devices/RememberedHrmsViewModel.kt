@@ -12,6 +12,9 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+const val ACTIVE_SESSION_SWITCH_LOCKOUT_NOTICE =
+    "Cannot switch sensor during an active session. Stop or complete the session first."
+
 data class RememberedHrmsUiState(
     val activeHrm: RememberedHrmEntity? = null,
     val inactiveHrms: List<RememberedHrmEntity> = emptyList(),
@@ -27,10 +30,13 @@ data class RememberedHrmsUiState(
 class RememberedHrmsViewModel(
     private val rememberedHrmDao: RememberedHrmDao,
     private val isSessionActiveFlow: Flow<Boolean> = flowOf(false),
-    private val onDisconnectActiveHrm: suspend (macAddress: String) -> Unit = {}
+    private val onDisconnectActiveHrm: suspend (macAddress: String) -> Unit = {},
+    private val isSessionActiveProvider: () -> Boolean = { false }
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(RememberedHrmsUiState())
+    private val _uiState = MutableStateFlow(
+        RememberedHrmsUiState(isSessionActive = isSessionActiveProvider())
+    )
     val uiState: StateFlow<RememberedHrmsUiState> = _uiState.asStateFlow()
 
     init {
@@ -47,19 +53,59 @@ class RememberedHrmsViewModel(
         }
         viewModelScope.launch {
             isSessionActiveFlow.collect { active ->
-                _uiState.update { it.copy(isSessionActive = active) }
+                val effectiveActive = active || isSessionActiveProvider()
+                _uiState.update { current ->
+                    val forgetTarget = current.forgetConfirmationTarget
+                    val latestForgetTarget = forgetTarget?.let { target ->
+                        current.allHrms.firstOrNull { it.macAddress == target.macAddress } ?: target
+                    }
+                    val closingActiveForgetDialog =
+                        effectiveActive && latestForgetTarget?.isActive == true
+                    current.copy(
+                        isSessionActive = effectiveActive,
+                        forgetConfirmationTarget = if (closingActiveForgetDialog) {
+                            null
+                        } else {
+                            current.forgetConfirmationTarget
+                        },
+                        errorMessage = when {
+                            closingActiveForgetDialog -> ACTIVE_SESSION_SWITCH_LOCKOUT_NOTICE
+                            !effectiveActive &&
+                                current.errorMessage == ACTIVE_SESSION_SWITCH_LOCKOUT_NOTICE -> null
+                            else -> current.errorMessage
+                        }
+                    )
+                }
             }
         }
     }
 
+    private fun isSessionCurrentlyActive(): Boolean =
+        _uiState.value.isSessionActive || isSessionActiveProvider()
+
+    private fun resolveLatestHrm(hrm: RememberedHrmEntity): RememberedHrmEntity =
+        _uiState.value.allHrms.firstOrNull { it.macAddress == hrm.macAddress } ?: hrm
+
+    private fun applyActiveSessionLockout(clearForgetDialog: Boolean = false) {
+        _uiState.update { current ->
+            current.copy(
+                isSessionActive = true,
+                forgetConfirmationTarget = if (clearForgetDialog) null else current.forgetConfirmationTarget,
+                errorMessage = ACTIVE_SESSION_SWITCH_LOCKOUT_NOTICE
+            )
+        }
+    }
+
     fun promoteToActive(macAddress: String) {
-        if (_uiState.value.isSessionActive) {
-            _uiState.update {
-                it.copy(errorMessage = "Cannot change Active HRM while a Session is active.")
-            }
+        if (isSessionCurrentlyActive()) {
+            applyActiveSessionLockout()
             return
         }
         viewModelScope.launch {
+            if (isSessionCurrentlyActive()) {
+                applyActiveSessionLockout()
+                return@launch
+            }
             try {
                 rememberedHrmDao.promoteToActiveHrm(macAddress)
                 _uiState.update {
@@ -125,15 +171,14 @@ class RememberedHrmsViewModel(
     }
 
     fun requestForgetDevice(hrm: RememberedHrmEntity) {
-        if (_uiState.value.isSessionActive && hrm.isActive) {
-            _uiState.update {
-                it.copy(errorMessage = "Cannot forget the Active HRM while a Session is active.")
-            }
+        val currentTarget = resolveLatestHrm(hrm)
+        if (currentTarget.isActive && isSessionCurrentlyActive()) {
+            applyActiveSessionLockout(clearForgetDialog = true)
             return
         }
         _uiState.update {
             it.copy(
-                forgetConfirmationTarget = hrm,
+                forgetConfirmationTarget = currentTarget,
                 errorMessage = null
             )
         }
@@ -145,14 +190,10 @@ class RememberedHrmsViewModel(
 
     fun confirmForgetDevice() {
         val target = _uiState.value.forgetConfirmationTarget ?: return
-        val currentTarget = _uiState.value.allHrms.firstOrNull { it.macAddress == target.macAddress } ?: target
-        if (_uiState.value.isSessionActive && currentTarget.isActive) {
-            _uiState.update {
-                it.copy(
-                    forgetConfirmationTarget = null,
-                    errorMessage = "Cannot forget the Active HRM while a Session is active."
-                )
-            }
+        val currentTarget = resolveLatestHrm(target)
+        val isTargetActive = currentTarget.isActive
+        if (isTargetActive && isSessionCurrentlyActive()) {
+            applyActiveSessionLockout(clearForgetDialog = true)
             return
         }
         _uiState.update {
@@ -162,14 +203,28 @@ class RememberedHrmsViewModel(
             )
         }
         viewModelScope.launch {
+            if (isTargetActive && isSessionCurrentlyActive()) {
+                applyActiveSessionLockout(clearForgetDialog = true)
+                return@launch
+            }
             try {
-                if (currentTarget.isActive) {
-                    onDisconnectActiveHrm(currentTarget.macAddress)
+                val freshTarget = rememberedHrmDao.getHrmByMacAddress(currentTarget.macAddress) ?: currentTarget
+                val isFreshTargetActive = freshTarget.isActive || isTargetActive
+                if (isFreshTargetActive) {
+                    if (isSessionCurrentlyActive()) {
+                        applyActiveSessionLockout(clearForgetDialog = true)
+                        return@launch
+                    }
+                    onDisconnectActiveHrm(freshTarget.macAddress)
+                    if (isSessionCurrentlyActive()) {
+                        applyActiveSessionLockout(clearForgetDialog = true)
+                        return@launch
+                    }
                     rememberedHrmDao.clearActiveHrms()
-                    rememberedHrmDao.deleteHrmByMacAddress(currentTarget.macAddress)
+                    rememberedHrmDao.deleteHrmByMacAddress(freshTarget.macAddress)
                     _uiState.update { it.copy(showActiveHrmDeletedPrompt = true) }
                 } else {
-                    rememberedHrmDao.deleteHrmByMacAddress(currentTarget.macAddress)
+                    rememberedHrmDao.deleteHrmByMacAddress(freshTarget.macAddress)
                 }
             } catch (t: Throwable) {
                 _uiState.update {
