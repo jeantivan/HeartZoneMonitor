@@ -139,8 +139,9 @@ fun LiveSessionContent(
         )
     },
     statusBannerContent: @Composable () -> Unit = {
-        if (!uiState.isRecording && !uiState.isPaused) {
-            LiveSessionAutoConnectBanner(
+        when {
+            uiState.isSensorContactLost -> LiveSessionContactLossBanner()
+            !uiState.isRecording && !uiState.isPaused -> LiveSessionAutoConnectBanner(
                 autoConnectState = uiState.autoConnectState,
                 onOpenScanner = actions.onOpenScanner
             )

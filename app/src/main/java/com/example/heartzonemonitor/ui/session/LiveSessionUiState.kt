@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.heartzonemonitor.data.ble.ActiveHrmAutoConnector
 import com.example.heartzonemonitor.data.ble.AutoConnectState
+import com.example.heartzonemonitor.data.ble.BleConnectionState
 import com.example.heartzonemonitor.data.ble.BleDeviceDiscoveryService
 import com.example.heartzonemonitor.data.ble.BleDiscoveryState
 import com.example.heartzonemonitor.data.ble.BleOperationResult
@@ -53,7 +54,9 @@ data class LiveSessionUiState(
     val isImmersionMode: Boolean = isRecording || isPaused,
     val pendingMicroSessionDiscardPrompt: Boolean = false,
     val autoConnectState: AutoConnectState = AutoConnectState.Idle,
-    val scannerSheet: BleScannerSheetUiState = BleScannerSheetUiState()
+    val scannerSheet: BleScannerSheetUiState = BleScannerSheetUiState(),
+    val sensorContact: Boolean? = null,
+    val isSensorContactLost: Boolean = false
 )
 
 /**
@@ -472,7 +475,12 @@ internal fun SessionUiState.toLiveSessionUiState(): LiveSessionUiState = when (t
         batteryLevel = batteryLevel,
         canStartSession = canStartSession,
         isImmersionMode = false,
-        pendingMicroSessionDiscardPrompt = false
+        pendingMicroSessionDiscardPrompt = false,
+        sensorContact = sensorContact,
+        isSensorContactLost = activeHrm != null &&
+            connectionState is BleConnectionState.Connected &&
+            connectionState.macAddress == activeHrm.macAddress &&
+            sensorContact == false
     )
     is SessionUiState.Recording -> LiveSessionUiState(
         activeHrm = activeHrm,
@@ -485,7 +493,10 @@ internal fun SessionUiState.toLiveSessionUiState(): LiveSessionUiState = when (t
         batteryLevel = batteryLevel,
         canStartSession = false,
         isImmersionMode = true,
-        pendingMicroSessionDiscardPrompt = pendingMicroSessionDiscardPrompt
+        pendingMicroSessionDiscardPrompt = pendingMicroSessionDiscardPrompt,
+        sensorContact = sensorContact,
+        isSensorContactLost = connectionState is BleConnectionState.Connected &&
+            sensorContact == false
     )
     is SessionUiState.Paused -> LiveSessionUiState(
         activeHrm = activeHrm,
@@ -498,7 +509,10 @@ internal fun SessionUiState.toLiveSessionUiState(): LiveSessionUiState = when (t
         batteryLevel = batteryLevel,
         canStartSession = false,
         isImmersionMode = true,
-        pendingMicroSessionDiscardPrompt = pendingMicroSessionDiscardPrompt
+        pendingMicroSessionDiscardPrompt = pendingMicroSessionDiscardPrompt,
+        sensorContact = sensorContact,
+        isSensorContactLost = reason == PauseReason.SENSOR_CONTACT_LOST ||
+            (connectionState is BleConnectionState.Connected && sensorContact == false)
     )
     is SessionUiState.Completed, is SessionUiState.Discarded -> LiveSessionUiState(
         activeHrm = null,
@@ -511,6 +525,8 @@ internal fun SessionUiState.toLiveSessionUiState(): LiveSessionUiState = when (t
         batteryLevel = null,
         canStartSession = false,
         isImmersionMode = false,
-        pendingMicroSessionDiscardPrompt = false
+        pendingMicroSessionDiscardPrompt = false,
+        sensorContact = null,
+        isSensorContactLost = false
     )
 }

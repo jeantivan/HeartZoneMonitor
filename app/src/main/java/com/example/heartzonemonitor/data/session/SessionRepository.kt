@@ -6,6 +6,7 @@ import com.example.heartzonemonitor.data.ble.BleOperationResult
 import com.example.heartzonemonitor.data.ble.BleReconnectionPolicy
 import com.example.heartzonemonitor.data.ble.BleTransport
 import com.example.heartzonemonitor.data.ble.BleUuids
+import com.example.heartzonemonitor.data.ble.HeartRateMeasurement
 import com.example.heartzonemonitor.data.ble.HeartRateMeasurementParser
 import com.example.heartzonemonitor.data.ble.HrmGattClient
 import com.example.heartzonemonitor.data.local.HeartRateSampleBuffer
@@ -68,7 +69,8 @@ class SessionRepository(
     private val currentYearProvider: () -> Int = { Year.now().value },
     private val sessionIdGenerator: () -> String = { UUID.randomUUID().toString() },
     private val reconnectionPolicy: BleReconnectionPolicy = BleReconnectionPolicy.Default,
-    private val disconnectAlertNotifier: BleDisconnectAlertNotifier = NoOpBleDisconnectAlertNotifier
+    private val disconnectAlertNotifier: BleDisconnectAlertNotifier = NoOpBleDisconnectAlertNotifier,
+    private val contactLossDebounceMs: Long = SENSOR_CONTACT_LOSS_DEBOUNCE_MS
 ) {
     private val repositoryJob = SupervisorJob(scope.coroutineContext[Job])
     private val repositoryScope = CoroutineScope(scope.coroutineContext + repositoryJob)
@@ -107,6 +109,9 @@ class SessionRepository(
     private var reconnectionMacAddress: String? = null
     private var gracePeriodJob: Job? = null
     private var reconnectionJob: Job? = null
+    private var contactLossGeneration: Long = 0L
+    private var contactLossSessionId: String? = null
+    private var contactLossJob: Job? = null
 
     private val _connectionState = MutableStateFlow(currentConnectionState)
     val connectionState: StateFlow<BleConnectionState> = _connectionState.asStateFlow()
@@ -143,6 +148,7 @@ class SessionRepository(
             .distinctUntilChanged()
 
     init {
+        require(contactLossDebounceMs >= 0L) { "contactLossDebounceMs must be non-negative" }
         repositoryScope.launch(start = CoroutineStart.UNDISPATCHED) {
             userProfileDao.getProfileFlow().collect { profile ->
                 onUserProfileUpdated(profile)
@@ -285,6 +291,7 @@ class SessionRepository(
         )
 
         synchronized(stateLock) {
+            cancelContactLossDebounceLocked()
             activeSession = sessionContext
             publishActiveStateLocked(sessionContext, startSnapshot)
         }
@@ -324,8 +331,13 @@ class SessionRepository(
         session: ActiveSessionContext,
         reason: PauseReason
     ): Boolean {
+        val currentJob = coroutineContext[Job]
         val canPause = synchronized(stateLock) {
-            activeSession === session && session.pauseReason == null
+            val eligible = activeSession === session && session.pauseReason == null
+            if (eligible) {
+                cancelContactLossDebounceLocked(excludeJob = currentJob)
+            }
+            eligible
         }
         if (!canPause) return false
 
@@ -343,6 +355,7 @@ class SessionRepository(
         synchronized(stateLock) {
             session.sessionEntity = updatedEntity
             session.pauseReason = reason
+            cancelContactLossDebounceLocked(excludeJob = currentJob)
             if (reason != PauseReason.BLE_CONNECTION_LOST) {
                 cancelGracePeriodLocked()
             }
@@ -368,6 +381,7 @@ class SessionRepository(
         sessionDao.updateSession(updatedEntity)
 
         synchronized(stateLock) {
+            cancelContactLossDebounceLocked()
             session.sessionEntity = updatedEntity
             session.pauseReason = null
             session.pendingMicroSessionDiscardPrompt = false
@@ -407,6 +421,7 @@ class SessionRepository(
             }
 
             synchronized(stateLock) {
+                cancelContactLossDebounceLocked()
                 cancelReconnectionLocked(syncConnectionState = true)
             }
 
@@ -476,6 +491,7 @@ class SessionRepository(
     suspend fun discardSession(): Boolean = transitionMutex.withLock {
         val session = synchronized(stateLock) {
             val current = activeSession ?: return@withLock false
+            cancelContactLossDebounceLocked()
             cancelReconnectionLocked(syncConnectionState = true)
             current
         }
@@ -532,6 +548,7 @@ class SessionRepository(
      */
     fun close() {
         synchronized(stateLock) {
+            cancelContactLossDebounceLocked()
             cancelReconnectionLocked(syncConnectionState = false)
         }
         repositoryJob.cancel()
@@ -554,9 +571,12 @@ class SessionRepository(
             val isValidMeasurement = measurement.bpm in MIN_VALID_BPM..MAX_VALID_BPM &&
                 measurement.sensorContact
 
-            val sampleToEnqueue: HeartRateSampleEntity? = synchronized(stateLock) {
+            var sessionToAutoResume: ActiveSessionContext? = null
+            var sampleToEnqueue: HeartRateSampleEntity? = null
+
+            synchronized(stateLock) {
                 if (isReconnecting) {
-                    return@synchronized null
+                    return@synchronized
                 }
                 val previousState = currentConnectionState
                 val session = activeSession
@@ -568,18 +588,20 @@ class SessionRepository(
                     if (session == null || session.pauseReason != null) {
                         updateConnectionStateLocked(liveConnectionState)
                         if (previousState != liveConnectionState) {
+                            cancelContactLossDebounceLocked()
                             clearLiveTelemetryLocked()
                             liveBatteryLevel = null
                             republishCurrentStateLocked()
                         }
                     }
-                    return@synchronized null
+                    return@synchronized
                 }
                 updateConnectionStateLocked(liveConnectionState)
                 if (notification.macAddress != targetHrm!!.macAddress) {
-                    return@synchronized null
+                    return@synchronized
                 }
                 if (previousState != liveConnectionState) {
+                    cancelContactLossDebounceLocked()
                     clearLiveTelemetryLocked()
                     liveBatteryLevel = null
                 }
@@ -596,29 +618,55 @@ class SessionRepository(
                     }
                 }
 
-                if (session != null && session.pauseReason == null && isValidMeasurement) {
-                    val zone = session.zoneCalculation.getZoneForBpm(measurement.bpm)
-                        ?: HeartZone.ZONE_1
-                    val timestampEpochMs = measurement.timestampEpochMs
-                        .takeIf { it > 0L } ?: clock.currentEpochMs()
-                    HeartRateSampleEntity(
-                        sessionId = session.sessionId,
-                        timestampEpochMs = timestampEpochMs,
-                        bpm = measurement.bpm,
-                        zoneIndex = zone.zoneIndex,
-                        sensorContact = measurement.sensorContact
-                    )
-                } else {
-                    republishCurrentStateLocked()
-                    null
+                when {
+                    session == null -> {
+                        republishCurrentStateLocked()
+                    }
+                    session.pauseReason == null -> {
+                        if (!measurement.sensorContact) {
+                            startContactLossDebounceLocked(session)
+                            publishActiveStateLocked(session)
+                        } else {
+                            cancelContactLossDebounceLocked()
+                            if (isValidMeasurement) {
+                                sampleToEnqueue = buildSampleLocked(session, measurement)
+                            } else {
+                                publishActiveStateLocked(session)
+                            }
+                        }
+                    }
+                    session.pauseReason == PauseReason.SENSOR_CONTACT_LOST -> {
+                        if (measurement.sensorContact) {
+                            cancelContactLossDebounceLocked()
+                            sessionToAutoResume = session
+                            if (isValidMeasurement) {
+                                sampleToEnqueue = buildSampleLocked(session, measurement)
+                            }
+                        } else {
+                            publishActiveStateLocked(session)
+                        }
+                    }
+                    else -> {
+                        cancelContactLossDebounceLocked()
+                        publishActiveStateLocked(session)
+                    }
                 }
             }
 
-            if (sampleToEnqueue != null) {
-                sampleBuffer.enqueue(sampleToEnqueue)
+            val autoResumeSession = sessionToAutoResume
+            if (autoResumeSession != null) {
+                val resumed = resumeSessionLocked(autoResumeSession)
+                if (!resumed) {
+                    sampleToEnqueue = null
+                }
+            }
+
+            val sample = sampleToEnqueue
+            if (sample != null) {
+                sampleBuffer.enqueue(sample)
                 synchronized(stateLock) {
                     val session = activeSession
-                    if (session != null && session.sessionId == sampleToEnqueue.sessionId) {
+                    if (session != null && session.sessionId == sample.sessionId) {
                         session.sampleCount += 1
                         publishActiveStateLocked(session)
                     }
@@ -678,6 +726,7 @@ class SessionRepository(
                         return@synchronized null
                     }
 
+                    cancelContactLossDebounceLocked()
                     cancelReconnectionLocked(syncConnectionState = false)
                     updateConnectionStateLocked(newState)
                     clearLiveTelemetryLocked()
@@ -703,6 +752,7 @@ class SessionRepository(
                         newState.macAddress == targetMac
 
                     if (!connectedToTarget || previousState != newState) {
+                        cancelContactLossDebounceLocked()
                         clearLiveTelemetryLocked()
                         liveBatteryLevel = null
                     }
@@ -736,6 +786,7 @@ class SessionRepository(
             val previousState = currentConnectionState
             updateConnectionStateLocked(liveConnectionState)
             if (!connectedToTarget || previousState != liveConnectionState) {
+                cancelContactLossDebounceLocked()
                 clearLiveTelemetryLocked()
             }
             liveBatteryLevel = if (connectedToTarget) level else null
@@ -750,6 +801,7 @@ class SessionRepository(
         (newState is BleConnectionState.Connected && newState.macAddress != sessionMacAddress)
 
     private fun startReconnectionLocked(session: ActiveSessionContext) {
+        cancelContactLossDebounceLocked()
         val macAddress = session.activeHrm.macAddress
         val sessionId = session.sessionId
         val generation = ++reconnectionGeneration
@@ -954,6 +1006,99 @@ class SessionRepository(
             reconnectionSessionId == sessionId &&
             activeSession?.sessionId == sessionId
 
+    private fun buildSampleLocked(
+        session: ActiveSessionContext,
+        measurement: HeartRateMeasurement
+    ): HeartRateSampleEntity {
+        val zone = session.zoneCalculation.getZoneForBpm(measurement.bpm)
+            ?: HeartZone.ZONE_1
+        val timestampEpochMs = measurement.timestampEpochMs
+            .takeIf { it > 0L } ?: clock.currentEpochMs()
+        return HeartRateSampleEntity(
+            sessionId = session.sessionId,
+            timestampEpochMs = timestampEpochMs,
+            bpm = measurement.bpm,
+            zoneIndex = zone.zoneIndex,
+            sensorContact = measurement.sensorContact
+        )
+    }
+
+    private fun startContactLossDebounceLocked(session: ActiveSessionContext) {
+        if (contactLossJob?.isActive == true && contactLossSessionId == session.sessionId) {
+            return
+        }
+        val sessionId = session.sessionId
+        val macAddress = session.activeHrm.macAddress
+        val generation = ++contactLossGeneration
+        contactLossSessionId = sessionId
+        contactLossJob?.cancel()
+        contactLossJob = repositoryScope.launch(start = CoroutineStart.DEFAULT) {
+            runContactLossDebounceTimer(
+                sessionId = sessionId,
+                macAddress = macAddress,
+                generation = generation
+            )
+        }
+    }
+
+    private suspend fun runContactLossDebounceTimer(
+        sessionId: String,
+        macAddress: String,
+        generation: Long
+    ) {
+        val currentJob = coroutineContext[Job]
+        try {
+            delay(contactLossDebounceMs)
+
+            transitionMutex.withLock {
+                val liveConnectionState = bleTransport.connectionState.value
+                val sessionToPause = synchronized(stateLock) {
+                    val current = activeSession
+                    val connectedToSessionHrm =
+                        liveConnectionState is BleConnectionState.Connected &&
+                            liveConnectionState.macAddress == macAddress &&
+                            currentConnectionState is BleConnectionState.Connected &&
+                            (currentConnectionState as BleConnectionState.Connected).macAddress == macAddress
+                    if (!isReconnecting &&
+                        contactLossGeneration == generation &&
+                        contactLossSessionId == sessionId &&
+                        connectedToSessionHrm &&
+                        current != null &&
+                        current.sessionId == sessionId &&
+                        current.pauseReason == null &&
+                        latestSensorContact == false
+                    ) {
+                        current
+                    } else {
+                        null
+                    }
+                } ?: return@withLock
+
+                pauseSessionLocked(
+                    session = sessionToPause,
+                    reason = PauseReason.SENSOR_CONTACT_LOST
+                )
+            }
+        } finally {
+            synchronized(stateLock) {
+                if (contactLossGeneration == generation && contactLossJob === currentJob) {
+                    contactLossJob = null
+                    contactLossSessionId = null
+                }
+            }
+        }
+    }
+
+    private fun cancelContactLossDebounceLocked(excludeJob: Job? = null) {
+        contactLossGeneration += 1
+        contactLossSessionId = null
+        val jobToCancel = contactLossJob
+        contactLossJob = null
+        if (jobToCancel != null && jobToCancel !== excludeJob) {
+            jobToCancel.cancel()
+        }
+    }
+
     private fun cancelGracePeriodLocked() {
         gracePeriodJob?.cancel()
         gracePeriodJob = null
@@ -1119,6 +1264,7 @@ class SessionRepository(
 
     companion object {
         const val MICRO_SESSION_THRESHOLD_MS = 10_000L
+        const val SENSOR_CONTACT_LOSS_DEBOUNCE_MS = 5_000L
         const val MIN_USER_AGE = 10
         const val MAX_USER_AGE = 110
         const val MIN_VALID_BPM = 1
@@ -1137,7 +1283,8 @@ class SessionRepository(
             hrmGattClient: HrmGattClient? = null,
             clock: SessionClock = AndroidSessionClock,
             reconnectionPolicy: BleReconnectionPolicy = BleReconnectionPolicy.Default,
-            disconnectAlertNotifier: BleDisconnectAlertNotifier = NoOpBleDisconnectAlertNotifier
+            disconnectAlertNotifier: BleDisconnectAlertNotifier = NoOpBleDisconnectAlertNotifier,
+            contactLossDebounceMs: Long = SENSOR_CONTACT_LOSS_DEBOUNCE_MS
         ): SessionRepository {
             return instance ?: synchronized(this) {
                 instance ?: SessionRepository(
@@ -1150,7 +1297,8 @@ class SessionRepository(
                     hrmGattClient = hrmGattClient,
                     clock = clock,
                     reconnectionPolicy = reconnectionPolicy,
-                    disconnectAlertNotifier = disconnectAlertNotifier
+                    disconnectAlertNotifier = disconnectAlertNotifier,
+                    contactLossDebounceMs = contactLossDebounceMs
                 ).also { instance = it }
             }
         }
