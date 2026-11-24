@@ -35,8 +35,17 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.heartzonemonitor.data.local.entity.RememberedHrmEntity
 import com.example.heartzonemonitor.data.local.entity.UserProfileEntity
+import com.example.heartzonemonitor.ui.history.SessionHistoryActions
+import com.example.heartzonemonitor.ui.history.SessionHistoryContent
+import com.example.heartzonemonitor.ui.history.SessionHistoryScreen
+import com.example.heartzonemonitor.ui.history.SessionHistoryUiState
+import com.example.heartzonemonitor.ui.history.SessionHistoryViewModel
 import com.example.heartzonemonitor.ui.session.LiveSessionActions
 import com.example.heartzonemonitor.ui.session.LiveSessionContent
 import com.example.heartzonemonitor.ui.session.LiveSessionNoHrmNotice
@@ -46,7 +55,6 @@ import com.example.heartzonemonitor.ui.session.LiveSessionViewModel
 
 // Athletic Monolith Design Tokens
 private val VoidBlack = Color(0xFF0B0F19)
-private val DarkSlate = Color(0xFF1E293B)
 private val BorderSlate = Color(0xFF334155)
 private val AthleticLime = Color(0xFFBDCF73)
 private val TextPrimary = Color(0xFFFFFFFF)
@@ -66,7 +74,8 @@ data class MainShellUiState(
 
 data class MainShellActions(
     val onTabSelected: (MainTab) -> Unit = {},
-    val onManageDevices: () -> Unit = {}
+    val onManageDevices: () -> Unit = {},
+    val onSessionClick: (String) -> Unit = {}
 )
 
 @Composable
@@ -76,7 +85,9 @@ fun MainShell(
     initialTab: MainTab = MainTab.LIVE_SESSION,
     activeHrm: RememberedHrmEntity? = null,
     onManageDevices: () -> Unit = {},
+    onSessionClick: (String) -> Unit = {},
     liveSessionViewModelFactory: (() -> LiveSessionViewModel)? = null,
+    sessionHistoryViewModelFactory: (() -> SessionHistoryViewModel)? = null,
     openLiveSessionRequestId: Int = 0
 ) {
     var selectedTab by rememberSaveable { mutableStateOf(initialTab) }
@@ -90,6 +101,19 @@ fun MainShell(
     val liveSessionViewModel = remember(liveSessionViewModelFactory != null) {
         liveSessionViewModelFactory?.invoke()
     }
+    val viewModelStoreOwner = LocalViewModelStoreOwner.current
+    val sessionHistoryViewModel: SessionHistoryViewModel? = when {
+        sessionHistoryViewModelFactory == null -> null
+        viewModelStoreOwner != null -> viewModel(
+            viewModelStoreOwner = viewModelStoreOwner,
+            factory = object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                    sessionHistoryViewModelFactory() as T
+            }
+        )
+        else -> remember(true) { sessionHistoryViewModelFactory() }
+    }
     val liveSessionState = liveSessionViewModel?.uiState?.collectAsState()?.value
 
     MainShellContent(
@@ -100,11 +124,13 @@ fun MainShell(
         ),
         actions = MainShellActions(
             onTabSelected = { selectedTab = it },
-            onManageDevices = onManageDevices
+            onManageDevices = onManageDevices,
+            onSessionClick = onSessionClick
         ),
         userProfile = userProfile,
         modifier = modifier,
-        liveSessionViewModel = liveSessionViewModel
+        liveSessionViewModel = liveSessionViewModel,
+        sessionHistoryViewModel = sessionHistoryViewModel
     )
 }
 
@@ -114,7 +140,8 @@ fun MainShellContent(
     actions: MainShellActions,
     userProfile: UserProfileEntity?,
     modifier: Modifier = Modifier,
-    liveSessionViewModel: LiveSessionViewModel? = null
+    liveSessionViewModel: LiveSessionViewModel? = null,
+    sessionHistoryViewModel: SessionHistoryViewModel? = null
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -152,7 +179,17 @@ fun MainShellContent(
                     }
                 }
                 MainTab.SESSION_HISTORY -> {
-                    SessionHistoryPlaceholder()
+                    if (sessionHistoryViewModel != null) {
+                        SessionHistoryScreen(
+                            viewModel = sessionHistoryViewModel,
+                            onSessionClick = actions.onSessionClick
+                        )
+                    } else {
+                        SessionHistoryContent(
+                            uiState = SessionHistoryUiState(isLoading = false),
+                            actions = SessionHistoryActions(onSessionClick = actions.onSessionClick)
+                        )
+                    }
                 }
                 MainTab.SETTINGS -> {
                     SettingsPlaceholder(
@@ -199,36 +236,6 @@ fun MainShellBottomBar(
                     color = if (isSelected) AthleticLime else TextSecondary
                 )
             }
-        }
-    }
-}
-
-@Composable
-fun SessionHistoryPlaceholder(modifier: Modifier = Modifier) {
-    Surface(
-        modifier = modifier.fillMaxSize(),
-        color = VoidBlack
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(24.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = "SESSION HISTORY",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 2.sp,
-                color = TextPrimary
-            )
-            Text(
-                text = "Recorded sessions will appear here",
-                fontSize = 14.sp,
-                color = TextSecondary,
-                modifier = Modifier.padding(top = 8.dp)
-            )
         }
     }
 }

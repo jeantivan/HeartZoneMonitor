@@ -9,6 +9,11 @@ object NavDestinations {
 
     const val LIVE_SESSION = "session/live"
     const val SESSION_HISTORY = "history"
+    const val SESSION_DETAIL_ARG_ID = "sessionId"
+    const val SESSION_DETAIL_ROUTE = "history/detail/{$SESSION_DETAIL_ARG_ID}"
     const val SETTINGS = "settings"
     const val DEVICES = "devices"
+
+    fun sessionDetailRoute(sessionId: String): String =
+        "history/detail/${android.net.Uri.encode(sessionId)}"
 }

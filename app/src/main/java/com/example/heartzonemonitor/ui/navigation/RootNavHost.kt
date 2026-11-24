@@ -18,15 +18,19 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.example.heartzonemonitor.ui.devices.RememberedHrmsActions
 import com.example.heartzonemonitor.ui.devices.RememberedHrmsContent
 import com.example.heartzonemonitor.ui.devices.RememberedHrmsScreen
 import com.example.heartzonemonitor.ui.devices.RememberedHrmsUiState
 import com.example.heartzonemonitor.ui.devices.RememberedHrmsViewModel
+import com.example.heartzonemonitor.ui.history.SessionDetailPlaceholder
+import com.example.heartzonemonitor.ui.history.SessionHistoryViewModel
 import com.example.heartzonemonitor.ui.onboarding.OnboardingPairingActions
 import com.example.heartzonemonitor.ui.onboarding.OnboardingPairingContent
 import com.example.heartzonemonitor.ui.onboarding.OnboardingPairingScreen
@@ -48,6 +52,7 @@ fun RootNavHost(
     onboardingPairingViewModelFactory: (() -> OnboardingPairingViewModel)? = null,
     rememberedHrmsViewModelFactory: (() -> RememberedHrmsViewModel)? = null,
     liveSessionViewModelFactory: (() -> LiveSessionViewModel)? = null,
+    sessionHistoryViewModelFactory: (() -> SessionHistoryViewModel)? = null,
     openLiveSessionRequestId: Int = 0
 ) {
     val navState by rootViewModel.navState.collectAsState()
@@ -148,6 +153,11 @@ fun RootNavHost(
                             launchSingleTop = true
                         }
                     }
+                    val navigateToSessionDetail: (String) -> Unit = { sessionId ->
+                        navController.navigate(NavDestinations.sessionDetailRoute(sessionId)) {
+                            launchSingleTop = true
+                        }
+                    }
 
                     navigation(
                         startDestination = NavDestinations.LIVE_SESSION,
@@ -160,7 +170,9 @@ fun RootNavHost(
                                 initialTab = MainTab.LIVE_SESSION,
                                 activeHrm = activeHrm,
                                 onManageDevices = navigateToDevices,
+                                onSessionClick = navigateToSessionDetail,
                                 liveSessionViewModelFactory = liveSessionViewModelFactory,
+                                sessionHistoryViewModelFactory = sessionHistoryViewModelFactory,
                                 openLiveSessionRequestId = openLiveSessionRequestId,
                                 modifier = Modifier.fillMaxSize()
                             )
@@ -172,7 +184,9 @@ fun RootNavHost(
                                 initialTab = MainTab.SESSION_HISTORY,
                                 activeHrm = activeHrm,
                                 onManageDevices = navigateToDevices,
+                                onSessionClick = navigateToSessionDetail,
                                 liveSessionViewModelFactory = liveSessionViewModelFactory,
+                                sessionHistoryViewModelFactory = sessionHistoryViewModelFactory,
                                 openLiveSessionRequestId = openLiveSessionRequestId,
                                 modifier = Modifier.fillMaxSize()
                             )
@@ -184,9 +198,27 @@ fun RootNavHost(
                                 initialTab = MainTab.SETTINGS,
                                 activeHrm = activeHrm,
                                 onManageDevices = navigateToDevices,
+                                onSessionClick = navigateToSessionDetail,
                                 liveSessionViewModelFactory = liveSessionViewModelFactory,
+                                sessionHistoryViewModelFactory = sessionHistoryViewModelFactory,
                                 openLiveSessionRequestId = openLiveSessionRequestId,
                                 modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                        composable(
+                            route = NavDestinations.SESSION_DETAIL_ROUTE,
+                            arguments = listOf(
+                                navArgument(NavDestinations.SESSION_DETAIL_ARG_ID) {
+                                    type = NavType.StringType
+                                }
+                            )
+                        ) { backStackEntry ->
+                            val sessionId = backStackEntry.arguments
+                                ?.getString(NavDestinations.SESSION_DETAIL_ARG_ID)
+                                .orEmpty()
+                            SessionDetailPlaceholder(
+                                sessionId = sessionId,
+                                onNavigateBack = { navController.popBackStack() }
                             )
                         }
                         composable(NavDestinations.DEVICES) {

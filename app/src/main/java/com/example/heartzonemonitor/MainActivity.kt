@@ -27,6 +27,7 @@ import com.example.heartzonemonitor.data.session.SessionRepository
 import com.example.heartzonemonitor.service.AndroidRecordingServiceLauncher
 import com.example.heartzonemonitor.service.RecordingServiceCoordinator
 import com.example.heartzonemonitor.ui.devices.RememberedHrmsViewModel
+import com.example.heartzonemonitor.ui.history.SessionHistoryViewModel
 import com.example.heartzonemonitor.ui.navigation.RootNavHost
 import com.example.heartzonemonitor.ui.navigation.RootViewModel
 import com.example.heartzonemonitor.ui.onboarding.OnboardingPairingViewModel
@@ -179,6 +180,12 @@ class MainActivity : ComponentActivity() {
                                 rememberedHrmDao = rememberedHrmDao,
                                 permissionChecker = blePermissionChecker,
                                 hrmGattClient = sessionRepository.hrmGattClient
+                            )
+                        },
+                        sessionHistoryViewModelFactory = {
+                            SessionHistoryViewModel(
+                                sessionDao = database.sessionDao(),
+                                rememberedHrmDao = rememberedHrmDao
                             )
                         },
                         openLiveSessionRequestId = openLiveSessionRequestId
