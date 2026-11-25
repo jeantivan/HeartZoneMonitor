@@ -33,7 +33,7 @@ The theoretical or manually overridden upper limit of heart rate (in beats per m
 _Avoid_: Max BPM, peak heart rate, top pulse
 
 **Heart Rate Sample**:
-A single timestamped heart rate measurement (in beats per minute) recorded at 1 Hz during active session recording.
+A single timestamped heart rate measurement (in beats per minute) recorded at 1 Hz during active session recording. (Domain model: `domain/model/HeartRateSample.kt`.)
 _Avoid_: Tick, data point, pulse reading
 
 **Remembered HRM**:

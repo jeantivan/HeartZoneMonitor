@@ -21,13 +21,19 @@ if [ -n "$DESTRUCTIVE_MATCHES" ]; then
     FAILED=1
 fi
 
-# 3. Ban android.* / androidx.* imports in pure domain layer
+# 3. Ban android.*, androidx.*, and data/ui layer imports in pure domain layer
 DOMAIN_DIR="app/src/main/java/com/example/heartzonemonitor/domain"
 if [ -d "$DOMAIN_DIR" ]; then
     ANDROID_IMPORT_MATCHES=$(grep -rnE '^import[[:space:]]+(android|androidx)\.' "$DOMAIN_DIR" --include='*.kt' --include='*.java' 2>/dev/null || true)
     if [ -n "$ANDROID_IMPORT_MATCHES" ]; then
         echo "ERROR: Android framework imports found in pure domain package ($DOMAIN_DIR):"
         echo "$ANDROID_IMPORT_MATCHES"
+        FAILED=1
+    fi
+    LAYER_IMPORT_MATCHES=$(grep -rnE '^import[[:space:]]+com\.example\.heartzonemonitor\.(data|ui)\.' "$DOMAIN_DIR" --include='*.kt' --include='*.java' 2>/dev/null || true)
+    if [ -n "$LAYER_IMPORT_MATCHES" ]; then
+        echo "ERROR: Data/UI layer imports found in pure domain package ($DOMAIN_DIR):"
+        echo "$LAYER_IMPORT_MATCHES"
         FAILED=1
     fi
 fi

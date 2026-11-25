@@ -4,8 +4,7 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
-
-typealias HeartRateSample = HeartRateSampleEntity
+import com.example.heartzonemonitor.domain.model.HeartRateSample
 
 /**
  * Room entity representing a single 1 Hz Heart Rate Sample associated with a Session.
@@ -48,10 +47,28 @@ data class HeartRateSampleEntity(
         }
     }
 
+    fun toDomain(): HeartRateSample = HeartRateSample(
+        id = id,
+        sessionId = sessionId,
+        timestampEpochMs = timestampEpochMs,
+        bpm = bpm,
+        zoneIndex = zoneIndex,
+        sensorContact = sensorContact
+    )
+
     companion object {
-        const val MIN_BPM = 0
-        const val MAX_BPM = 255
-        const val MIN_ZONE_INDEX = 1
-        const val MAX_ZONE_INDEX = 5
+        const val MIN_BPM = HeartRateSample.MIN_BPM
+        const val MAX_BPM = HeartRateSample.MAX_BPM
+        const val MIN_ZONE_INDEX = HeartRateSample.MIN_ZONE_INDEX
+        const val MAX_ZONE_INDEX = HeartRateSample.MAX_ZONE_INDEX
     }
 }
+
+fun HeartRateSample.toEntity(): HeartRateSampleEntity = HeartRateSampleEntity(
+    id = id,
+    sessionId = sessionId,
+    timestampEpochMs = timestampEpochMs,
+    bpm = bpm,
+    zoneIndex = zoneIndex,
+    sensorContact = sensorContact
+)

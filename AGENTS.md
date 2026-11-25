@@ -24,7 +24,7 @@ Codebase standards and review rules live in `CODING_STANDARDS.md`.
 - Terminology check: `./scripts/check-glossary.sh`
 - Standards check: `./scripts/check-standards.sh`
 - Unit tests: `./gradlew :app:testDebugUnitTest --tests "<class>"`
-- Full test suite: `./gradlew test`
+- Full test suite: `./gradlew test` (`.githooks/pre-commit` automatically runs glossary/standards checks and `:app:testDebugUnitTest` on staged source changes; run `:app:lintDebug` beforehand and let `git commit` execute the final unit-test pass when staging all changes)
 - Android Lint: `./gradlew :app:lintDebug`
 - Always pass `BypassSandbox: true` for `./gradlew` and `.git` index writes (`git add`, `git commit`, `git cherry-pick`, `git apply --cached`) — sandboxed runs cannot lock `~/.gradle` or `.git/index.lock`.
 

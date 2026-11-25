@@ -5,12 +5,13 @@ import android.database.sqlite.SQLiteConstraintException
 import com.example.heartzonemonitor.data.local.dao.HeartRateSampleDao
 import com.example.heartzonemonitor.data.local.dao.RememberedHrmDao
 import com.example.heartzonemonitor.data.local.dao.SessionDao
-import com.example.heartzonemonitor.data.local.entity.HeartRateSample
 import com.example.heartzonemonitor.data.local.entity.HeartRateSampleEntity
 import com.example.heartzonemonitor.data.local.entity.RememberedHrmEntity
 import com.example.heartzonemonitor.data.local.entity.Session
 import com.example.heartzonemonitor.data.local.entity.SessionEntity
 import com.example.heartzonemonitor.data.local.entity.SessionStatus
+import com.example.heartzonemonitor.data.local.entity.toEntity
+import com.example.heartzonemonitor.domain.model.HeartRateSample
 import com.example.heartzonemonitor.domain.model.ZoneCalculationMode
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
@@ -158,14 +159,14 @@ class SessionAndSampleDaoTest {
             )
         }
 
-        val minBoundary = HeartRateSample(
+        val minBoundary = HeartRateSampleEntity(
             sessionId = "session-1",
             timestampEpochMs = 1000L,
             bpm = 0,
             zoneIndex = 1,
             sensorContact = false
         )
-        val maxBoundary = HeartRateSample(
+        val maxBoundary = HeartRateSampleEntity(
             sessionId = "session-1",
             timestampEpochMs = 2000L,
             bpm = 255,
@@ -174,6 +175,16 @@ class SessionAndSampleDaoTest {
         )
         assertEquals(0, minBoundary.bpm)
         assertEquals(5, maxBoundary.zoneIndex)
+
+        val domainSample = HeartRateSample(
+            id = 42L,
+            sessionId = "session-1",
+            timestampEpochMs = 3000L,
+            bpm = 148,
+            zoneIndex = 3,
+            sensorContact = true
+        )
+        assertEquals(domainSample, domainSample.toEntity().toDomain())
     }
 
     @Test

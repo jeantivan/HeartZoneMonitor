@@ -1,6 +1,6 @@
 package com.example.heartzonemonitor.domain.calculator
 
-import com.example.heartzonemonitor.data.local.entity.HeartRateSample
+import com.example.heartzonemonitor.domain.model.HeartRateSample
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertThrows

@@ -1,6 +1,6 @@
 # Coding Standards
 
-Mechanical rules (banned terms, `Thread.sleep` in tests, destructive migrations, Android imports in `domain/`, Material Icons imports, raw palette literals outside `ui/theme/`) are enforced by `./scripts/check-glossary.sh` and `./scripts/check-standards.sh`. This file holds judgement calls for review.
+Mechanical rules (banned terms, `Thread.sleep` in tests, destructive migrations, Android/`data`/`ui` imports in `domain/`, Material Icons imports, raw palette literals outside `ui/theme/`) are enforced by `./scripts/check-glossary.sh` and `./scripts/check-standards.sh`. This file holds judgement calls for review.
 
 ## 1. Domain Terminology
 
