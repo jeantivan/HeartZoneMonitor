@@ -3,12 +3,15 @@ package com.example.heartzonemonitor.ui.history
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.heartzonemonitor.data.ble.resolveHrmDisplayName
+import com.example.heartzonemonitor.data.local.dao.HeartRateSampleDao
 import com.example.heartzonemonitor.data.local.dao.RememberedHrmDao
 import com.example.heartzonemonitor.data.local.dao.SessionDao
+import com.example.heartzonemonitor.data.local.entity.HeartRateSampleEntity
 import com.example.heartzonemonitor.data.local.entity.RememberedHrmEntity
 import com.example.heartzonemonitor.data.local.entity.SessionEntity
 import com.example.heartzonemonitor.data.local.entity.SessionStatus
 import com.example.heartzonemonitor.domain.calculator.ZoneCalculator
+import com.example.heartzonemonitor.domain.model.HeartRateSample
 import com.example.heartzonemonitor.domain.model.HeartZone
 import com.example.heartzonemonitor.domain.model.ZoneCalculationMode
 import java.time.Instant
@@ -82,6 +85,7 @@ data class SessionDetailModel(
     val minBpm: Int,
     val profileSnapshot: FrozenProfileSnapshot,
     val zoneBreakdowns: List<SessionZoneBreakdown>,
+    val chart: SessionChartModel = SessionChartModel(),
     val dominantZone: SessionZoneBreakdown? = zoneBreakdowns
         .filter { it.durationMs > 0L }
         .maxByOrNull { it.durationMs }
@@ -161,6 +165,7 @@ class SessionDetailViewModel(
     sessionId: String,
     sessionDao: SessionDao,
     rememberedHrmDao: RememberedHrmDao? = null,
+    sampleDao: HeartRateSampleDao? = null,
     private val zoneCalculator: ZoneCalculator = ZoneCalculator(),
     private val zoneId: ZoneId = ZoneId.systemDefault(),
     locale: Locale = Locale.US
@@ -174,19 +179,25 @@ class SessionDetailViewModel(
     private val hrmsFlow: Flow<List<RememberedHrmEntity>> =
         rememberedHrmDao?.observeAllHrms() ?: flowOf(emptyList())
 
+    private val samplesFlow: Flow<List<HeartRateSampleEntity>> =
+        sampleDao?.observeSamplesForSession(sessionId) ?: flowOf(emptyList())
+
     val uiState: StateFlow<SessionDetailUiState> = combine(
         sessionDao.observeSessionById(sessionId),
-        hrmsFlow
-    ) { session, hrms ->
+        hrmsFlow,
+        samplesFlow
+    ) { session, hrms, sampleEntities ->
         if (session == null) {
             SessionDetailUiState(isLoading = false, session = null)
         } else {
             val hrmsByNormalizedMac =
                 hrms.associateBy { it.macAddress.trim().uppercase(Locale.ROOT) }
+            val domainSamples = sampleEntities.map { it.toDomain() }
             SessionDetailUiState(
                 isLoading = false,
                 session = session.toSessionDetailModel(
                     hrmsByNormalizedMac = hrmsByNormalizedMac,
+                    samples = domainSamples,
                     zoneCalculator = zoneCalculator,
                     zoneId = zoneId,
                     dateFormatter = dateFormatter,
@@ -207,6 +218,7 @@ class SessionDetailViewModel(
 
 internal fun SessionEntity.toSessionDetailModel(
     hrmsByNormalizedMac: Map<String, RememberedHrmEntity>,
+    samples: List<HeartRateSample> = emptyList(),
     zoneCalculator: ZoneCalculator = ZoneCalculator(),
     zoneId: ZoneId = ZoneId.of("UTC"),
     dateFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern(SESSION_DETAIL_DATE_PATTERN, Locale.US),
@@ -266,6 +278,16 @@ internal fun SessionEntity.toSessionDetailModel(
         )
     }
 
+    val zoneThresholds = zoneResult.zones.map { range ->
+        ZoneThresholdLine(zone = range.zone, bpm = range.minBpm)
+    }
+    val chartModel = buildSessionChartModel(
+        samples = samples,
+        sessionStartEpochMs = startEpochMs,
+        elapsedDurationMs = elapsedDurationMs,
+        zoneThresholds = zoneThresholds
+    )
+
     return SessionDetailModel(
         formattedDate = dateFormatter.format(zonedStart),
         formattedStartTimestamp = timestampFormatter.format(zonedStart),
@@ -287,6 +309,7 @@ internal fun SessionEntity.toSessionDetailModel(
             calculatedHrmax = calculatedHrmax,
             calculationMode = calculationMode
         ),
-        zoneBreakdowns = zoneBreakdowns
+        zoneBreakdowns = zoneBreakdowns,
+        chart = chartModel
     )
 }

@@ -1,7 +1,9 @@
 package com.example.heartzonemonitor.ui.history
 
+import com.example.heartzonemonitor.data.local.FakeHeartRateSampleDao
 import com.example.heartzonemonitor.data.local.FakeRememberedHrmDao
 import com.example.heartzonemonitor.data.local.FakeSessionDao
+import com.example.heartzonemonitor.data.local.entity.HeartRateSampleEntity
 import com.example.heartzonemonitor.data.local.entity.RememberedHrmEntity
 import com.example.heartzonemonitor.data.local.entity.SessionEntity
 import com.example.heartzonemonitor.data.local.entity.SessionStatus
@@ -344,5 +346,98 @@ class SessionDetailViewModelTest {
             val missingState = SessionDetailViewModel("nonexistent-id", sessionDao, zoneId = utcZone, locale = Locale.US)
                 .uiState.first { !it.isLoading }
             assertEquals(null, missingState.session)
+        }
+
+    @Test
+    fun `observes session samples builds frozen chart thresholds and downsamples above 1000`() =
+        runTest(testDispatcher) {
+            val baseStartMs = Instant.parse("2026-11-11T17:00:00Z").toEpochMilli()
+            val karvonenSession = SessionEntity(
+                id = "session-chart-karvonen",
+                startEpochMs = baseStartMs,
+                endEpochMs = baseStartMs + 1_200_000L,
+                elapsedDurationMs = 1_200_000L,
+                effectiveDurationMs = 1_200_000L,
+                pausedDurationMs = 0L,
+                status = SessionStatus.COMPLETED,
+                hrmMacAddress = "D4:36:39:88:21:9B",
+                userAge = 38,
+                calculatedHrmax = 181,
+                restingHr = 58,
+                calculationMode = ZoneCalculationMode.KARVONEN,
+                avgBpm = 148,
+                maxBpm = 178,
+                minBpm = 112,
+                zone1DurationMs = 200_000L,
+                zone2DurationMs = 300_000L,
+                zone3DurationMs = 400_000L,
+                zone4DurationMs = 200_000L,
+                zone5DurationMs = 100_000L
+            )
+            val percentSession = karvonenSession.copy(
+                id = "session-chart-percent",
+                userAge = 40,
+                calculatedHrmax = 180,
+                restingHr = null,
+                calculationMode = ZoneCalculationMode.PERCENT_HRMAX
+            )
+            val sessionDao = FakeSessionDao(listOf(karvonenSession, percentSession))
+            val sampleDao = FakeHeartRateSampleDao()
+
+            val karvonenVm = SessionDetailViewModel(
+                sessionId = karvonenSession.id,
+                sessionDao = sessionDao,
+                sampleDao = sampleDao,
+                zoneId = utcZone,
+                locale = Locale.US
+            )
+
+            val states = Channel<SessionDetailUiState>(Channel.UNLIMITED)
+            val collectJob = launch(UnconfinedTestDispatcher(testScheduler)) {
+                karvonenVm.uiState.collect { if (!it.isLoading) states.send(it) }
+            }
+
+            // Initially empty samples -> frozen Karvonen thresholds still populated
+            val initialChart = requireNotNull(states.receive().session).chart
+            assertTrue(initialChart.plottedSamples.isEmpty())
+            assertFalse(initialChart.isDownsampled)
+            assertEquals(
+                listOf(120, 132, 144, 156, 169),
+                initialChart.zoneThresholds.map { it.bpm }
+            )
+
+            // Insert 1,200 1 Hz samples -> reactive update downsamples via LTTB to 800 points
+            val manySamples = (0 until 1_200).map { sec ->
+                HeartRateSampleEntity(
+                    sessionId = karvonenSession.id,
+                    timestampEpochMs = baseStartMs + sec * 1_000L,
+                    bpm = if (sec == 600) 178 else 130 + (sec % 30),
+                    zoneIndex = if (sec == 600) 5 else 3,
+                    sensorContact = true
+                )
+            }
+            sampleDao.insertSamples(manySamples)
+
+            val updatedChart = requireNotNull(states.receive().session).chart
+            assertTrue(updatedChart.isDownsampled)
+            assertEquals(1_200, updatedChart.rawSampleCount)
+            assertEquals(DEFAULT_CHART_LTTB_TARGET_POINTS, updatedChart.plottedSamples.size)
+            assertTrue(updatedChart.plottedSamples.any { it.bpm == 178 })
+
+            // Verify %HRmax session computes 50/60/70/80/90% of HRmax thresholds (90, 108, 126, 144, 162)
+            val percentVm = SessionDetailViewModel(
+                sessionId = percentSession.id,
+                sessionDao = sessionDao,
+                sampleDao = sampleDao,
+                zoneId = utcZone,
+                locale = Locale.US
+            )
+            val percentChart = requireNotNull(percentVm.uiState.first { !it.isLoading }.session).chart
+            assertEquals(
+                listOf(90, 108, 126, 144, 162),
+                percentChart.zoneThresholds.map { it.bpm }
+            )
+
+            collectJob.cancel()
         }
 }

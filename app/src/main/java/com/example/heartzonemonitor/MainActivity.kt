@@ -193,7 +193,8 @@ class MainActivity : ComponentActivity() {
                             SessionDetailViewModel(
                                 sessionId = sessionId,
                                 sessionDao = database.sessionDao(),
-                                rememberedHrmDao = rememberedHrmDao
+                                rememberedHrmDao = rememberedHrmDao,
+                                sampleDao = database.heartRateSampleDao()
                             )
                         },
                         openLiveSessionRequestId = openLiveSessionRequestId

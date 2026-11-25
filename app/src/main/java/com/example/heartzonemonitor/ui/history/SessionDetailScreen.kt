@@ -192,6 +192,7 @@ fun SessionDetailContent(
                     SessionDetailHeaderCard(session = session)
                     SessionDetailHeroTelemetryCard(session = session)
                     SessionDetailZoneDistributionCard(session = session)
+                    SessionHeartRateChartCard(chart = session.chart)
                     SessionDetailDurationsAndSnapshotCard(session = session)
                 }
             }
@@ -273,14 +274,15 @@ private fun SessionDetailTopBar(
 }
 
 @Composable
-private fun DetailSectionCard(
+internal fun DetailSectionCard(
     tag: String,
+    modifier: Modifier = Modifier,
     topAccentColor: Color? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val cardShape = RoundedCornerShape(14.dp)
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clip(cardShape)
             .background(DarkSlate)
