@@ -413,6 +413,15 @@ class SessionHistoryScreenTest {
                         zoneId = ZoneId.of("UTC"),
                         locale = Locale.US
                     )
+                },
+                sessionDetailViewModelFactory = { targetId ->
+                    SessionDetailViewModel(
+                        sessionId = targetId,
+                        sessionDao = sessionDao,
+                        rememberedHrmDao = hrmDao,
+                        zoneId = ZoneId.of("UTC"),
+                        locale = Locale.US
+                    )
                 }
             )
         }
@@ -427,21 +436,21 @@ class SessionHistoryScreenTest {
         composeTestRule.onNodeWithText("Chest Strap").assertIsDisplayed()
         composeTestRule.onNodeWithTag(sessionDurationTag(sessionId)).assertTextEquals("45:12")
 
-        // Tap session card -> navigates to Session Detail destination displaying the session ID
+        // Tap session card -> navigates to Session Detail destination displaying session telemetry
         composeTestRule.onNodeWithTag(sessionHistoryCardTag(sessionId)).performClick()
         composeTestRule.waitForIdle()
 
-        composeTestRule.onNodeWithTag(SESSION_DETAIL_PLACEHOLDER_TAG).assertIsDisplayed()
+        composeTestRule.onNodeWithTag(SESSION_DETAIL_SCREEN_TAG).assertIsDisplayed()
         composeTestRule.onNodeWithText("SESSION DETAIL").assertIsDisplayed()
-        composeTestRule.onNodeWithTag(SESSION_DETAIL_ID_TAG)
+        composeTestRule.onNodeWithTag(SESSION_DETAIL_EFFECTIVE_DURATION_TAG)
             .assertIsDisplayed()
-            .assertTextEquals(sessionId)
+            .assertTextEquals("00:45:12")
 
         // Back button returns to Session History list cleanly
         composeTestRule.onNodeWithContentDescription("Navigate back").performClick()
         composeTestRule.waitForIdle()
 
-        composeTestRule.onNodeWithTag(SESSION_DETAIL_PLACEHOLDER_TAG).assertDoesNotExist()
+        composeTestRule.onNodeWithTag(SESSION_DETAIL_SCREEN_TAG).assertDoesNotExist()
         composeTestRule.onNodeWithText("SESSION HISTORY").assertIsDisplayed()
         composeTestRule.onNodeWithTag(sessionHistoryCardTag(sessionId)).assertIsDisplayed()
     }

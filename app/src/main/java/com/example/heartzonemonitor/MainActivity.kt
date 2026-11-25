@@ -27,6 +27,7 @@ import com.example.heartzonemonitor.data.session.SessionRepository
 import com.example.heartzonemonitor.service.AndroidRecordingServiceLauncher
 import com.example.heartzonemonitor.service.RecordingServiceCoordinator
 import com.example.heartzonemonitor.ui.devices.RememberedHrmsViewModel
+import com.example.heartzonemonitor.ui.history.SessionDetailViewModel
 import com.example.heartzonemonitor.ui.history.SessionHistoryViewModel
 import com.example.heartzonemonitor.ui.navigation.RootNavHost
 import com.example.heartzonemonitor.ui.navigation.RootViewModel
@@ -184,6 +185,13 @@ class MainActivity : ComponentActivity() {
                         },
                         sessionHistoryViewModelFactory = {
                             SessionHistoryViewModel(
+                                sessionDao = database.sessionDao(),
+                                rememberedHrmDao = rememberedHrmDao
+                            )
+                        },
+                        sessionDetailViewModelFactory = { sessionId ->
+                            SessionDetailViewModel(
+                                sessionId = sessionId,
                                 sessionDao = database.sessionDao(),
                                 rememberedHrmDao = rememberedHrmDao
                             )

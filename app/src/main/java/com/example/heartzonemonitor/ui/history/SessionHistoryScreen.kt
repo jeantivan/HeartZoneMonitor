@@ -22,7 +22,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -65,9 +64,6 @@ val SessionHistoryBadgeColorKey = SemanticsPropertyKey<Color>("SessionHistoryBad
 const val SESSION_HISTORY_LIST_TAG = "session_history_list"
 const val SESSION_HISTORY_SUMMARY_TAG = "session_history_summary"
 const val SESSION_HISTORY_EMPTY_STATE_TAG = "session_history_empty_state"
-const val SESSION_DETAIL_PLACEHOLDER_TAG = "session_detail_placeholder"
-const val SESSION_DETAIL_BACK_BUTTON_TAG = "session_detail_back_button"
-const val SESSION_DETAIL_ID_TAG = "session_detail_id"
 
 fun sessionHistoryCardTag(sessionId: String): String = "session_history_card_$sessionId"
 
@@ -692,121 +688,5 @@ private fun SessionHistoryEmptyState(modifier: Modifier = Modifier) {
             lineHeight = 20.sp,
             fontFamily = FontFamily.SansSerif
         )
-    }
-}
-
-/**
- * Interim Session Detail destination scaffold until the full Session Detail analytics screen
- * replaces it.
- */
-@Composable
-fun SessionDetailPlaceholder(
-    sessionId: String,
-    onNavigateBack: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Scaffold(
-        modifier = modifier
-            .fillMaxSize()
-            .testTag(SESSION_DETAIL_PLACEHOLDER_TAG),
-        containerColor = VoidBlack,
-        topBar = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(VoidBlack)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(56.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(DarkSlate)
-                            .border(1.dp, BorderSlate, RoundedCornerShape(10.dp))
-                            .clickable(onClick = onNavigateBack)
-                            .testTag(SESSION_DETAIL_BACK_BUTTON_TAG)
-                            .semantics {
-                                role = Role.Button
-                                contentDescription = "Navigate back"
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "<-",
-                            color = TextPrimary,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace
-                        )
-                    }
-
-                    Column {
-                        Text(
-                            text = "SESSION ANALYTICS",
-                            color = TertiaryCyan,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace,
-                            letterSpacing = 1.5.sp
-                        )
-                        Text(
-                            text = "SESSION DETAIL",
-                            color = TextPrimary,
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = (-0.5).sp
-                        )
-                    }
-                }
-                HorizontalDivider(color = BorderSlate, thickness = 1.dp)
-            }
-        }
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(DarkSlate)
-                    .border(1.dp, BorderSlate, RoundedCornerShape(14.dp))
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    text = "SESSION ID",
-                    color = TextSecondary,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace,
-                    letterSpacing = 1.sp
-                )
-                Text(
-                    text = sessionId,
-                    color = AthleticLime,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace,
-                    modifier = Modifier.testTag(SESSION_DETAIL_ID_TAG)
-                )
-                Text(
-                    text = "Full Session telemetry and Heart Zone analytics will appear here.",
-                    color = TextSecondary,
-                    fontSize = 14.sp,
-                    lineHeight = 20.sp
-                )
-            }
-        }
     }
 }

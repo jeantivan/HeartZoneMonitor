@@ -29,7 +29,11 @@ import com.example.heartzonemonitor.ui.devices.RememberedHrmsContent
 import com.example.heartzonemonitor.ui.devices.RememberedHrmsScreen
 import com.example.heartzonemonitor.ui.devices.RememberedHrmsUiState
 import com.example.heartzonemonitor.ui.devices.RememberedHrmsViewModel
-import com.example.heartzonemonitor.ui.history.SessionDetailPlaceholder
+import com.example.heartzonemonitor.ui.history.SessionDetailActions
+import com.example.heartzonemonitor.ui.history.SessionDetailContent
+import com.example.heartzonemonitor.ui.history.SessionDetailScreen
+import com.example.heartzonemonitor.ui.history.SessionDetailUiState
+import com.example.heartzonemonitor.ui.history.SessionDetailViewModel
 import com.example.heartzonemonitor.ui.history.SessionHistoryViewModel
 import com.example.heartzonemonitor.ui.onboarding.OnboardingPairingActions
 import com.example.heartzonemonitor.ui.onboarding.OnboardingPairingContent
@@ -53,6 +57,7 @@ fun RootNavHost(
     rememberedHrmsViewModelFactory: (() -> RememberedHrmsViewModel)? = null,
     liveSessionViewModelFactory: (() -> LiveSessionViewModel)? = null,
     sessionHistoryViewModelFactory: (() -> SessionHistoryViewModel)? = null,
+    sessionDetailViewModelFactory: ((String) -> SessionDetailViewModel)? = null,
     openLiveSessionRequestId: Int = 0
 ) {
     val navState by rootViewModel.navState.collectAsState()
@@ -216,10 +221,28 @@ fun RootNavHost(
                             val sessionId = backStackEntry.arguments
                                 ?.getString(NavDestinations.SESSION_DETAIL_ARG_ID)
                                 .orEmpty()
-                            SessionDetailPlaceholder(
-                                sessionId = sessionId,
-                                onNavigateBack = { navController.popBackStack() }
-                            )
+                            if (sessionDetailViewModelFactory != null) {
+                                val detailViewModel: SessionDetailViewModel = viewModel(
+                                    viewModelStoreOwner = backStackEntry,
+                                    key = "session_detail_$sessionId",
+                                    factory = object : ViewModelProvider.Factory {
+                                        @Suppress("UNCHECKED_CAST")
+                                        override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                                            sessionDetailViewModelFactory(sessionId) as T
+                                    }
+                                )
+                                SessionDetailScreen(
+                                    viewModel = detailViewModel,
+                                    onNavigateBack = { navController.popBackStack() }
+                                )
+                            } else {
+                                SessionDetailContent(
+                                    uiState = SessionDetailUiState(isLoading = false),
+                                    actions = SessionDetailActions(
+                                        onNavigateBack = { navController.popBackStack() }
+                                    )
+                                )
+                            }
                         }
                         composable(NavDestinations.DEVICES) {
                             val devicesViewModel = remember {
