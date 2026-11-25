@@ -213,21 +213,27 @@ class SessionHistoryViewModelTest {
                 locale = Locale.US
             )
 
-            val initial = viewModel.uiState.first { !it.isLoading }
+            val states = Channel<SessionHistoryUiState>(Channel.UNLIMITED)
+            val collectJob = launch(UnconfinedTestDispatcher(testScheduler)) {
+                viewModel.uiState.collect { if (!it.isLoading) states.send(it) }
+            }
+
+            val initial = states.receive()
             assertEquals("Chest Strap", initial.sessions[0].hrmDisplayName)
             assertEquals("Polar OH1", initial.sessions[1].hrmDisplayName)
             assertEquals("AA:BB:CC:...:99", initial.sessions[2].hrmDisplayName)
 
             // Forgetting a Remembered HRM reactively falls back to its MAC snippet
             fakeHrmDao.deleteHrmByMacAddress(nicknamedHrm.macAddress)
-            advanceUntilIdle()
-            val afterForget = viewModel.uiState.value
+            val afterForget = states.receive()
             assertEquals("d4:36:39:...:9b", afterForget.sessions[0].hrmDisplayName)
 
             // Updating nickname reactively updates displayed HRM label
             fakeHrmDao.updateNickname(advertisedOnlyHrm.macAddress, "Track Armband")
-            advanceUntilIdle()
-            assertEquals("Track Armband", viewModel.uiState.value.sessions[1].hrmDisplayName)
+            val afterRename = states.receive()
+            assertEquals("Track Armband", afterRename.sessions[1].hrmDisplayName)
+
+            collectJob.cancel()
 
             // Without RememberedHrmDao, falls back cleanly to MAC snippet
             val withoutHrmDaoViewModel = SessionHistoryViewModel(

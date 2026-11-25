@@ -1,11 +1,19 @@
 #!/usr/bin/env bash
 set -e
 
-echo "Running domain terminology check..."
+echo "Running pre-commit verification (glossary, coding standards)..."
 ./scripts/check-glossary.sh
-
-echo "Running coding standards check..."
 ./scripts/check-standards.sh
 
-echo "Running pre-commit verification (:app:compileDebugUnitTestKotlin :app:testDebugUnitTest)..."
-./gradlew :app:compileDebugUnitTestKotlin :app:testDebugUnitTest
+if git diff --cached --name-only --diff-filter=ACMR | grep -qE '^(app/|gradle/|[^/]+\.gradle\.kts$|gradle\.properties$|settings\.gradle\.kts$)'; then
+    UNSTAGED_SRC=$(git diff --name-only -- app/ gradle/ '*.gradle.kts' gradle.properties settings.gradle.kts 2>/dev/null || true)
+    if [ -n "$UNSTAGED_SRC" ]; then
+        echo "WARNING: Unstaged changes exist in build/source files alongside a partial commit:"
+        echo "$UNSTAGED_SRC"
+        echo "Ensure the staged tree compiles cleanly in isolation without depending on unstaged edits."
+    fi
+    echo "Running pre-commit unit tests (:app:compileDebugUnitTestKotlin :app:testDebugUnitTest)..."
+    ./gradlew :app:compileDebugUnitTestKotlin :app:testDebugUnitTest
+else
+    echo "No build or source files staged; skipping Gradle unit tests."
+fi

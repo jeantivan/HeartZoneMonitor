@@ -2,6 +2,8 @@
 
 This registry catalogues all 7 core views and 3 modal dialogs required to implement the HeartZoneMonitor technical specification.
 
+> **Terminology Note:** Where older Stitch mockups or screen copy below use pre-glossary terms (`Workout`, `MAX BPM`, `Saved Sensor`), UI implementations must render the `GLOSSARY.md` equivalents (`Session`, `MAX HR` + `BPM`, `Remembered HRM`).
+
 ---
 
 ## Screen Overview & Navigation Graph

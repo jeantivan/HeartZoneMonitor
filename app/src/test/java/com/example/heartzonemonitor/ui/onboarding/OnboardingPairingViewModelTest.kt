@@ -130,7 +130,7 @@ class OnboardingPairingViewModelTest {
         }
 
     @Test
-    fun `when permissions are initially denied, waits until granted via onPermissionsUpdated to start scan`() =
+    fun `when permissions initially denied, waits until granted to start scan`() =
         runTest(testDispatcher) {
             permissionChecker.status = BlePermissionStatus(
                 hasScanPermission = false,
