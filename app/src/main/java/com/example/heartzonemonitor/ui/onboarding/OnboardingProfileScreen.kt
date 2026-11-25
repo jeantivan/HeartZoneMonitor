@@ -45,18 +45,18 @@ import androidx.compose.ui.unit.sp
 import com.example.heartzonemonitor.domain.model.HeartZone
 import com.example.heartzonemonitor.domain.model.ZoneCalculationMode
 import com.example.heartzonemonitor.domain.model.ZoneCalculationResult
+import com.example.heartzonemonitor.ui.theme.AthleticLime
+import com.example.heartzonemonitor.ui.theme.BorderSlate
+import com.example.heartzonemonitor.ui.theme.DarkSlate
+import com.example.heartzonemonitor.ui.theme.ErrorRed
+import com.example.heartzonemonitor.ui.theme.RequiredOrange
+import com.example.heartzonemonitor.ui.theme.TertiaryCyan
+import com.example.heartzonemonitor.ui.theme.TextDisabled
+import com.example.heartzonemonitor.ui.theme.TextPrimary
+import com.example.heartzonemonitor.ui.theme.TextSecondary
+import com.example.heartzonemonitor.ui.theme.VoidBlack
 
 // Athletic Monolith Color Palette
-private val VoidBlack = Color(0xFF0B0F19)
-private val DarkSlate = Color(0xFF1E293B)
-private val BorderSlate = Color(0xFF334155)
-private val TextPrimary = Color(0xFFFFFFFF)
-private val TextSecondary = Color(0xFF94A3B8)
-private val TextDisabled = Color(0xFF64748B)
-private val AthleticLime = Color(0xFFBDCF73)
-private val TertiaryCyan = Color(0xFF00DAF3)
-private val ErrorRed = Color(0xFFEF4444)
-private val RequiredOrange = Color(0xFFFD5921)
 
 data class OnboardingProfileActions(
     val onBirthYearChange: (String) -> Unit = {},

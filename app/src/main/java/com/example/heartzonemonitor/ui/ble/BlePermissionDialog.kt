@@ -55,16 +55,14 @@ import com.example.heartzonemonitor.data.ble.AndroidBlePermissionChecker
 import com.example.heartzonemonitor.data.ble.BlePermissionChecker
 import com.example.heartzonemonitor.data.ble.BlePermissionStatus
 import com.example.heartzonemonitor.data.ble.BlePermissions
-
-// Athletic Monolith Design Tokens
-private val VoidBlack = Color(0xFF0B0F19)
-private val DarkSlate = Color(0xFF1E293B)
-private val BorderSlate = Color(0xFF334155)
-private val AthleticLime = Color(0xFFBDCF73)
-private val TertiaryCyan = Color(0xFF00DAF3)
-private val WarningAmber = Color(0xFFF59E0B)
-private val TextPrimary = Color(0xFFFFFFFF)
-private val TextSecondary = Color(0xFF94A3B8)
+import com.example.heartzonemonitor.ui.theme.AthleticLime
+import com.example.heartzonemonitor.ui.theme.BorderSlate
+import com.example.heartzonemonitor.ui.theme.DarkSlate
+import com.example.heartzonemonitor.ui.theme.TertiaryCyan
+import com.example.heartzonemonitor.ui.theme.TextPrimary
+import com.example.heartzonemonitor.ui.theme.TextSecondary
+import com.example.heartzonemonitor.ui.theme.VoidBlack
+import com.example.heartzonemonitor.ui.theme.WarningAmber
 
 data class BlePermissionDialogUiState(
     val isVisible: Boolean = true,

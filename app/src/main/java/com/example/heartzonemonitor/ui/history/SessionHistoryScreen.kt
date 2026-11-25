@@ -43,18 +43,19 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.heartzonemonitor.domain.model.HeartZone
+import com.example.heartzonemonitor.ui.theme.AthleticLime
+import com.example.heartzonemonitor.ui.theme.BorderSlate
+import com.example.heartzonemonitor.ui.theme.DarkSlate
+import com.example.heartzonemonitor.ui.theme.SavedEmerald
+import com.example.heartzonemonitor.ui.theme.TertiaryCyan
+import com.example.heartzonemonitor.ui.theme.TextPrimary
+import com.example.heartzonemonitor.ui.theme.TextSecondary
+import com.example.heartzonemonitor.ui.theme.VoidBlack
+import com.example.heartzonemonitor.ui.theme.WarningAmber
 import kotlin.math.roundToInt
 
 // Athletic Monolith Design Tokens
-private val VoidBlack = Color(0xFF0B0F19)
-private val DarkSlate = Color(0xFF1E293B)
-private val BorderSlate = Color(0xFF334155)
-private val AthleticLime = Color(0xFFBDCF73)
-private val TertiaryCyan = Color(0xFF00DAF3)
-private val TextPrimary = Color(0xFFFFFFFF)
-private val TextSecondary = Color(0xFF94A3B8)
-private val SavedEmerald = Color(0xFF10B981)
-val SessionHistoryWarningAmber = Color(0xFFF59E0B)
+val SessionHistoryWarningAmber = WarningAmber
 
 // Custom Semantics Keys for deterministic Compose UI verification
 val SessionHistoryZoneColorKey = SemanticsPropertyKey<Color>("SessionHistoryZoneColor")

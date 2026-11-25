@@ -2,7 +2,7 @@
 set -e
 
 # Scans production codebase (excluding prototypes) for prohibited domain terminology from GLOSSARY.md
-BANNED_PATTERN="\b(smartwatch|fitness tracker|cardio zone|pulse range|heart bracket|max bpm|peak heart rate|top pulse|pulse reading|resting pulse|\bpulse\b|max heart rate|saved sensor|trusted peripheral|user account|personal info)\b"
+BANNED_PATTERN="\b(smartwatch|fitness tracker|cardio zone|pulse range|heart bracket|max bpm|peak heart rate|top pulse|pulse reading|resting pulse|\bpulse\b|max heart rate|saved sensor|trusted peripheral|user account|personal info|workout|tick|data point|selected device|current sensor|primary hrm|total time|overall duration|active time|training time|net time|idle time|rest time)\b"
 
 TARGET_DIR="app/src/main"
 

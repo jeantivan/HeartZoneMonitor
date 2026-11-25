@@ -22,11 +22,12 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.heartzonemonitor.ui.theme.WarningAmber
 
 const val LIVE_SESSION_CONTACT_LOSS_BANNER_TAG = "live_session_contact_loss_banner"
 const val SENSOR_CONTACT_LOSS_BANNER_TEXT = "Sensor contact lost — check strap positioning"
 
-val LiveSessionContactLossWarningAmber = Color(0xFFF59E0B)
+val LiveSessionContactLossWarningAmber = WarningAmber
 val LiveSessionContactLossContainer = Color.Black.copy(alpha = 0.45f)
 
 /**

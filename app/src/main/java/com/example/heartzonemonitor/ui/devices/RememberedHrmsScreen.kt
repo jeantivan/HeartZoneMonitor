@@ -47,21 +47,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.heartzonemonitor.data.local.entity.RememberedHrmEntity
+import com.example.heartzonemonitor.ui.theme.AthleticLime
+import com.example.heartzonemonitor.ui.theme.BorderSlate
+import com.example.heartzonemonitor.ui.theme.DarkSlate
+import com.example.heartzonemonitor.ui.theme.ErrorRed
+import com.example.heartzonemonitor.ui.theme.TertiaryCyan
+import com.example.heartzonemonitor.ui.theme.TextDisabled
+import com.example.heartzonemonitor.ui.theme.TextPrimary
+import com.example.heartzonemonitor.ui.theme.TextSecondary
+import com.example.heartzonemonitor.ui.theme.VoidBlack
+import com.example.heartzonemonitor.ui.theme.WarningAmber
 
 const val REMEMBERED_HRMS_LOCKOUT_NOTICE_TAG = "session_lockout_notice"
 const val SCAN_FOR_NEW_HRM_BUTTON_TAG = "scan_for_new_hrm_button"
-
-// Athletic Monolith Design Tokens
-private val VoidBlack = Color(0xFF0B0F19)
-private val DarkSlate = Color(0xFF1E293B)
-private val BorderSlate = Color(0xFF334155)
-private val AthleticLime = Color(0xFFBDCF73)
-private val TertiaryCyan = Color(0xFF00DAF3)
-private val TextPrimary = Color(0xFFFFFFFF)
-private val TextSecondary = Color(0xFF94A3B8)
-private val TextDisabled = Color(0xFF64748B)
-private val WarningAmber = Color(0xFFF59E0B)
-private val ErrorRed = Color(0xFFEF4444)
 
 data class RememberedHrmsActions(
     val onNavigateBack: () -> Unit = {},

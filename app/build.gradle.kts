@@ -38,6 +38,13 @@ android {
     testOptions {
         unitTests {
             isIncludeAndroidResources = true
+            all {
+                it.afterSuite(KotlinClosure2<TestDescriptor, TestResult, Unit>({ desc, result ->
+                    if (desc.parent == null) {
+                        println("Tests run: ${result.testCount}, Passed: ${result.successfulTestCount}, Failed: ${result.failedTestCount}, Skipped: ${result.skippedTestCount}")
+                    }
+                }))
+            }
         }
     }
 }

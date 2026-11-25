@@ -32,3 +32,6 @@ jobs:
 
       - name: Run Unit Tests
         run: ./gradlew test -Dorg.gradle.java.home="$JAVA_HOME" -Dorg.gradle.java.installations.paths="$JAVA_HOME"
+
+      - name: Run Android Lint
+        run: ./gradlew :app:lintDebug -Dorg.gradle.java.home="$JAVA_HOME" -Dorg.gradle.java.installations.paths="$JAVA_HOME"

@@ -7,7 +7,8 @@ Issues and specs for this repo live as markdown files in `.scratch/`.
 - One feature per directory: `.scratch/<feature-slug>/`
 - The spec is `.scratch/<feature-slug>/spec.md`
 - Implementation issues are one file per ticket at `.scratch/<feature-slug>/issues/<NN>-<slug>.md`, numbered from `01`, never a single combined tickets file
-- Triage state is recorded as a `Status:` line near the top of each issue file (see `triage-labels.md` for the role strings)
+- Triage state is recorded near the top of each issue file as `**Status:** <label>` (using the canonical labels in `triage-labels.md` directly) and dependencies as `**Blocked by:** <NN> (<title>), ...` or `None`
+- Discover the unblocked `ready-for-agent` frontier in one command with `./scripts/next-tickets.sh`
 - Comments and conversation history append to the bottom of the file under a `## Comments` heading
 
 ## When a skill says "publish to the issue tracker"

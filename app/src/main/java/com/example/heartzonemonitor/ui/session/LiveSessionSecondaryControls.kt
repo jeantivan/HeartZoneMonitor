@@ -34,6 +34,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.heartzonemonitor.domain.model.HeartZone
+import com.example.heartzonemonitor.ui.theme.DarkSlate
+import com.example.heartzonemonitor.ui.theme.ErrorRed
+import com.example.heartzonemonitor.ui.theme.TextSecondary
 import java.util.Locale
 
 val LiveSessionSegmentColorKey = SemanticsPropertyKey<Color>("LiveSessionSegmentColor")
@@ -49,9 +52,9 @@ private val PauseButtonRecordingContainer = Color.Black.copy(alpha = 0.45f)
 private val StopSaveButtonBorderColor = Color.White.copy(alpha = 0.40f)
 private val StartButtonDisabledContentColor = Color.White.copy(alpha = 0.45f)
 private val StartButtonDisabledBorderColor = Color.White.copy(alpha = 0.30f)
-private val MicroSessionDialogContainerColor = Color(0xFF1E293B)
-private val MicroSessionDialogBodyColor = Color(0xFF94A3B8)
-private val MicroSessionDiscardRed = Color(0xFFEF4444)
+private val MicroSessionDialogContainerColor = DarkSlate
+private val MicroSessionDialogBodyColor = TextSecondary
+private val MicroSessionDiscardRed = ErrorRed
 
 const val LIVE_SESSION_ZONE_PROGRESS_BAR_TAG = "live_session_zone_progress_bar"
 const val LIVE_SESSION_DURATION_CARD_TAG = "live_session_duration_card"

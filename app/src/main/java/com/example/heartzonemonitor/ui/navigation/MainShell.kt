@@ -52,13 +52,11 @@ import com.example.heartzonemonitor.ui.session.LiveSessionNoHrmNotice
 import com.example.heartzonemonitor.ui.session.LiveSessionScreen
 import com.example.heartzonemonitor.ui.session.LiveSessionUiState
 import com.example.heartzonemonitor.ui.session.LiveSessionViewModel
-
-// Athletic Monolith Design Tokens
-private val VoidBlack = Color(0xFF0B0F19)
-private val BorderSlate = Color(0xFF334155)
-private val AthleticLime = Color(0xFFBDCF73)
-private val TextPrimary = Color(0xFFFFFFFF)
-private val TextSecondary = Color(0xFF94A3B8)
+import com.example.heartzonemonitor.ui.theme.AthleticLime
+import com.example.heartzonemonitor.ui.theme.BorderSlate
+import com.example.heartzonemonitor.ui.theme.TextPrimary
+import com.example.heartzonemonitor.ui.theme.TextSecondary
+import com.example.heartzonemonitor.ui.theme.VoidBlack
 
 enum class MainTab(val route: String, val label: String) {
     LIVE_SESSION(NavDestinations.LIVE_SESSION, "LIVE"),

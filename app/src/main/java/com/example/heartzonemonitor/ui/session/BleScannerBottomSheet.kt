@@ -51,6 +51,16 @@ import com.example.heartzonemonitor.ui.ble.BlePermissionRequester
 import com.example.heartzonemonitor.ui.onboarding.OnboardingPairingViewModel
 import com.example.heartzonemonitor.ui.onboarding.formatMacSnippet
 import com.example.heartzonemonitor.ui.onboarding.rssiToSignalBars
+import com.example.heartzonemonitor.ui.theme.AthleticLime
+import com.example.heartzonemonitor.ui.theme.BorderSlate
+import com.example.heartzonemonitor.ui.theme.DarkSlate
+import com.example.heartzonemonitor.ui.theme.ErrorRed
+import com.example.heartzonemonitor.ui.theme.TertiaryCyan
+import com.example.heartzonemonitor.ui.theme.TextDisabled
+import com.example.heartzonemonitor.ui.theme.TextPrimary
+import com.example.heartzonemonitor.ui.theme.TextSecondary
+import com.example.heartzonemonitor.ui.theme.VoidBlack
+import com.example.heartzonemonitor.ui.theme.WarningAmber
 
 const val BLE_SCANNER_BOTTOM_SHEET_TAG = "ble_scanner_bottom_sheet"
 const val BLE_SCANNER_CLOSE_BUTTON_TAG = "ble_scanner_close_button"
@@ -59,18 +69,6 @@ const val BLE_SCANNER_GRANT_PERMISSIONS_TAG = "ble_scanner_grant_permissions_but
 const val BLE_SCANNER_ERROR_BANNER_TAG = "ble_scanner_error_banner"
 const val BLE_SCANNER_HRM_CARD_TAG_PREFIX = "ble_scanner_hrm_card_"
 const val BLE_SCANNER_CONNECT_BUTTON_TAG_PREFIX = "ble_scanner_connect_button_"
-
-// Athletic Monolith Design Tokens
-private val VoidBlack = Color(0xFF0B0F19)
-private val DarkSlate = Color(0xFF1E293B)
-private val BorderSlate = Color(0xFF334155)
-private val TextPrimary = Color(0xFFFFFFFF)
-private val TextSecondary = Color(0xFF94A3B8)
-private val TextDisabled = Color(0xFF64748B)
-private val AthleticLime = Color(0xFFBDCF73)
-private val TertiaryCyan = Color(0xFF00DAF3)
-private val WarningAmber = Color(0xFFF59E0B)
-private val ErrorRed = Color(0xFFEF4444)
 
 /**
  * UI state for the Live Session BLE scanner bottom sheet.

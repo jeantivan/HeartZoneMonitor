@@ -21,6 +21,7 @@ import com.example.heartzonemonitor.data.session.SessionRepository
 import com.example.heartzonemonitor.data.session.SessionUiState
 import com.example.heartzonemonitor.domain.model.HeartZone
 import com.example.heartzonemonitor.ui.onboarding.OnboardingPairingViewModel
+import com.example.heartzonemonitor.ui.theme.VoidBlack
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -36,7 +37,7 @@ import kotlinx.coroutines.launch
 
 const val LIVE_SESSION_BG_ANIMATION_DURATION_MS = 500
 const val LIVE_SESSION_BG_DEPTH_ALPHA = 0.82f
-val LiveSessionVoidBlack = Color(0xFF0B0F19)
+val LiveSessionVoidBlack = VoidBlack
 
 /**
  * UI state rendered by the Athletic Monolith Live Session screen.

@@ -24,13 +24,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.heartzonemonitor.data.ble.AutoConnectState
+import com.example.heartzonemonitor.ui.theme.WarningAmber
 
 const val LIVE_SESSION_AUTO_CONNECT_BANNER_TAG = "live_session_auto_connect_banner"
 const val LIVE_SESSION_DORMANT_PROMPT_TAG = "live_session_dormant_prompt"
 const val DORMANT_STRAP_PROMPT_TEXT =
     "Sensor not found. Ensure strap is moist and worn, or tap to Scan."
 
-private val DormantPromptAmber = Color(0xFFF59E0B)
+private val DormantPromptAmber = WarningAmber
 private val ConnectingBannerContainer = Color.Black.copy(alpha = 0.32f)
 private val ConnectingBannerBorder = Color.White.copy(alpha = 0.25f)
 private val DormantPromptContainer = Color.Black.copy(alpha = 0.45f)

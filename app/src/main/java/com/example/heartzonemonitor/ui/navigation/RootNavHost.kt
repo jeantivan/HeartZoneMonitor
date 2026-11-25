@@ -43,8 +43,7 @@ import com.example.heartzonemonitor.ui.onboarding.OnboardingPairingViewModel
 import com.example.heartzonemonitor.ui.onboarding.OnboardingProfileScreen
 import com.example.heartzonemonitor.ui.onboarding.OnboardingProfileViewModel
 import com.example.heartzonemonitor.ui.session.LiveSessionViewModel
-
-private val VoidBlack = Color(0xFF0B0F19)
+import com.example.heartzonemonitor.ui.theme.VoidBlack
 
 @Composable
 fun RootNavHost(
