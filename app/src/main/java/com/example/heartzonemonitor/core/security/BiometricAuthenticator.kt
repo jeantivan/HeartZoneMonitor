@@ -1,6 +1,10 @@
 package com.example.heartzonemonitor.core.security
 
+import android.app.Activity
+import android.content.ActivityNotFoundException
 import android.content.Context
+import android.content.Intent
+import android.provider.Settings
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
@@ -167,5 +171,48 @@ class BiometricAuthenticatorImpl(
         return errorCode == BiometricPrompt.ERROR_USER_CANCELED ||
             errorCode == BiometricPrompt.ERROR_NEGATIVE_BUTTON ||
             errorCode == BiometricPrompt.ERROR_CANCELED
+    }
+}
+
+/**
+ * Resolves and launches Android device security settings for configuring a lock screen or biometric.
+ */
+object BiometricSecuritySettings {
+
+    fun createDeviceSecuritySettingsIntent(
+        context: Context,
+        allowedAuthenticators: Int = AndroidBiometricSecurityChecker.ALLOWED_AUTHENTICATORS,
+    ): Intent {
+        val packageManager = context.packageManager
+        val enrollIntent = Intent(Settings.ACTION_BIOMETRIC_ENROLL).apply {
+            putExtra(Settings.EXTRA_BIOMETRIC_AUTHENTICATORS_ALLOWED, allowedAuthenticators)
+        }
+        val securityIntent = Intent(Settings.ACTION_SECURITY_SETTINGS)
+        val fallbackIntent = Intent(Settings.ACTION_SETTINGS)
+
+        val resolved = when {
+            enrollIntent.resolveActivity(packageManager) != null -> enrollIntent
+            securityIntent.resolveActivity(packageManager) != null -> securityIntent
+            else -> fallbackIntent
+        }
+
+        if (context !is Activity) {
+            resolved.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        return resolved
+    }
+
+    fun openDeviceSecuritySettings(context: Context) {
+        val intent = createDeviceSecuritySettingsIntent(context)
+        try {
+            context.startActivity(intent)
+        } catch (_: ActivityNotFoundException) {
+            val fallback = Intent(Settings.ACTION_SETTINGS).apply {
+                if (context !is Activity) {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+            }
+            context.startActivity(fallback)
+        }
     }
 }
